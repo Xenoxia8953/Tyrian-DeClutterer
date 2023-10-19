@@ -84,12 +84,6 @@ namespace TYR_DeClutterer
                     if (!isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !hasBoxCollider)
                     {
                         obj.SetActive(false);
-                        Transform colliderTransform = obj.transform.Find("Collider");
-                        if (colliderTransform != null)
-                        {
-                            GameObject colliderObject = colliderTransform.gameObject;
-                            colliderObject.SetActive(false);
-                        }
                         //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
                     }
                 }
@@ -233,9 +227,19 @@ namespace TYR_DeClutterer
                 // Handle the case when obj is null for whatever reason.
                 return false;
             }
-            GameObject childGameObject = null;
+
             string objName = obj.name.ToLower();
-            bool hasMesh = obj.GetComponent<MeshRenderer>() != null;
+            bool hasMesh = obj.GetComponent<MeshRenderer>()?.enabled ?? false;
+            bool isLODGroup = obj.GetComponent<LODGroup>() != null;
+            bool hasMeshCollider = obj.GetComponent<MeshCollider>()?.enabled ?? false;
+            bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
+            bool isTarkovItem = obj.GetComponent<LootItem>() != null;
+            bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
+            bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
+            bool hasBoxCollider = obj.GetComponent<BoxCollider>()?.enabled ?? false;
+
+            GameObject childGameObject = null;
+
             foreach (Transform child in obj.transform)
             {
                 foreach (string name in subModelNames)
@@ -247,72 +251,36 @@ namespace TYR_DeClutterer
                 }
             }
             bool childHasMesh = childGameObject != null && childGameObject.GetComponent<MeshRenderer>() != null;
-            bool hasStaticDeferredDecal = obj.GetComponent<StaticDeferredDecal>() != null;
-            bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
-            bool isTarkovItem = obj.GetComponent<LootItem>() != null;
-            bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
-            bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
-            bool hasBoxCollider = obj.GetComponent<BoxCollider>() != null;
             foreach (string name in clutterNames)
             {
-                if (objName.Contains(name) && (hasMesh || childHasMesh || hasStaticDeferredDecal) && !objName.Contains("audio") 
+                if (objName.Contains(name) && (isLODGroup || hasMesh || childHasMesh || hasMeshCollider) && !objName.Contains("audio") && !objName.Contains("weapon") && !objName.Contains("barter")
                     && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !hasBoxCollider)
                 {
-                    if (hasMesh)
-                    {
-                        MeshRenderer meshRenderer = obj.GetComponent<MeshRenderer>();
-                        // Get the bounds of the mesh
-                        Bounds bounds = meshRenderer.bounds;
+                    float sizeOnY = GetMeshSizeOnY(obj, childGameObject);
 
-                        // Check the size of the mesh on its various axis
-                        float sizeOnY = bounds.size.y;
+                    // Find the "Collider" or "colider" child object
+                    Transform colliderTransform = obj.transform.Find("Collider") ?? obj.transform.Find("colider");
 
-                        // Log the size on the Y-axis
-                        //EFT.UI.ConsoleScreen.LogError("Found mesh object - " + objName);
-                        //EFT.UI.ConsoleScreen.LogError("Y size is - " + sizeOnY);
-                        Transform colliderTransform = obj.transform.Find("Collider");
-                        bool coliderDisabled = colliderTransform != null && !colliderTransform.gameObject.activeSelf;
-                        bool coliderExists = colliderTransform != null;
-                        if ((sizeOnY >= 0 && sizeOnY <= 0.25) || ((coliderDisabled || !coliderExists) && sizeOnY <= 2))
-                        {
-                            return true;
-                        }
-                        else
-                        {
-                            return false;
-                        }
-                    }
-                    if (childHasMesh)
-                    {
-                        MeshRenderer childMeshRenderer = childGameObject.GetComponent<MeshRenderer>();
-                        // Get the bounds of the mesh
-                        Bounds childBounds = childMeshRenderer.bounds;
+                    // Check the child's active state or existence
+                    bool coliderDisabled = colliderTransform == null || (!colliderTransform.gameObject.activeSelf);
 
-                        // Check the size of the mesh on its various axis
-                        float childSizeOnY = childBounds.size.y;
-
-                        // Log the size on the Y-axis
-                        //EFT.UI.ConsoleScreen.LogError("Found mesh object - " + objName);
-                        //EFT.UI.ConsoleScreen.LogError("Y size is - " + childSizeOnY);
-                        Transform colliderTransform = obj.transform.Find("colider");
-                        bool coliderDisabled = colliderTransform != null && !colliderTransform.gameObject.activeSelf;
-                        bool coliderExists = colliderTransform != null;
-                        if ((childSizeOnY >= 0 && childSizeOnY <= 0.25) || ((coliderDisabled || !coliderExists) && childSizeOnY <= 2))
-                        {
-                            return true;
-                        }
-                        else
-                        {
-                            return false;
-                        }
-                    }
-                    if (hasStaticDeferredDecal)
+                    if ((sizeOnY >= 0.00001 && sizeOnY <= 0.4) || (coliderDisabled && sizeOnY <= 2))
                     {
                         return true;
                     }
                 }
             }
             return false;
+        }
+        private float GetMeshSizeOnY(GameObject obj, GameObject childGameObject)
+        {
+            MeshRenderer meshRenderer = obj?.GetComponent<MeshRenderer>() ?? childGameObject?.GetComponent<MeshRenderer>();
+            if (meshRenderer != null && meshRenderer.enabled)
+            {
+                Bounds bounds = meshRenderer.bounds;
+                return bounds.size.y;
+            }
+            return 0.0f;
         }
     }
 }
