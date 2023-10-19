@@ -5,12 +5,13 @@ using EFT;
 using EFT.AssetsManager;
 using EFT.Interactive;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace TYR_DeClutterer
 {
-    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.0")]
+    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.5")]
     public class DeClutter : BaseUnityPlugin
     {
         private static GameWorld gameWorld;
@@ -24,17 +25,21 @@ namespace TYR_DeClutterer
         public static ConfigEntry<bool> declutterFakeFoodEnabledConfig;
         public static ConfigEntry<bool> declutterDecalsEnabledConfig;
         public static ConfigEntry<bool> declutterPuddlesEnabledConfig;
+        public static ConfigEntry<bool> declutterShardsEnabledConfig;
+        public static ConfigEntry<float> declutterScaleOffsetConfig;
 
         private void Awake()
         {
             SceneManager.sceneUnloaded += OnSceneUnloaded;
-            declutterEnabledConfig = Config.Bind("A - De-Clutter Enabler", "De-Clutterer Enabled", true, "Enables the De-Clutterer");
+            declutterEnabledConfig = Config.Bind("A - De-Clutter Enabler", "A - De-Clutterer Enabled", true, "Enables the De-Clutterer");
+            declutterScaleOffsetConfig = Config.Bind<float>("A - De-Clutter Enabler", "B - De-Clutterer Scaler", 1f, new BepInEx.Configuration.ConfigDescription("Larger Scale = Larger the Clutter Removed.", new BepInEx.Configuration.AcceptableValueRange<float>(0.5f, 2f)));
             declutterGarbageEnabledConfig = Config.Bind("B - De-Clutter Settings", "A - Garbage & Litter De-Clutter", true, "De-Clutters things labeled 'garbage' or similar. Smaller garbage piles.");
             declutterHeapsEnabledConfig = Config.Bind("B - De-Clutter Settings", "B - Heaps & Piles De-Clutter", true, "De-Clutters things labeled 'heaps' or similar. Larger garbage piles.");
             declutterSpentCartridgesEnabledConfig = Config.Bind("B - De-Clutter Settings", "C - Spent Cartridges De-Clutter", true, "De-Clutters pre-generated spent ammunition on floor.");
             declutterFakeFoodEnabledConfig = Config.Bind("B - De-Clutter Settings", "D - Fake Food De-Clutter", true, "De-Clutters fake 'food' items.");
             declutterDecalsEnabledConfig = Config.Bind("B - De-Clutter Settings", "E - Decal De-Clutter", true, "De-Clutters decals (Blood, grafiti, etc.)");
             declutterPuddlesEnabledConfig = Config.Bind("B - De-Clutter Settings", "F - Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
+            declutterShardsEnabledConfig = Config.Bind("B - De-Clutter Settings", "G - Glass & Tile Shards", true, "De-Clutters things labeled 'shards' or similar. The things you can step on that make noise.");
             InitializeClutterNames();
         }
         private void OnSceneUnloaded(Scene scene)
@@ -43,14 +48,15 @@ namespace TYR_DeClutterer
         }
         private void Update()
         {
-            if (!MapLoaded() || deCluttered || IsInHideout() || !declutterEnabledConfig.Value)
+            if (!MapLoaded() || deCluttered || !declutterEnabledConfig.Value)
                 return;
 
             gameWorld = Singleton<GameWorld>.Instance;
-            if (gameWorld == null || gameWorld.MainPlayer == null)
+            if (gameWorld == null || gameWorld.MainPlayer == null || IsInHideout())
                 return;
 
             DeClutterScene();
+            deCluttered = true;
         }
         private bool IsInHideout()
         {
@@ -76,25 +82,8 @@ namespace TYR_DeClutterer
             {
                 if (ShouldDisableObject(obj))
                 {
-                    bool isLODGroup = obj.GetComponent<LODGroup>() != null;
-                    bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
-                    bool isTarkovItem = obj.GetComponent<LootItem>() != null;
-                    bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
-                    bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
-                    bool hasBoxCollider = obj.GetComponent<BoxCollider>() != null;
-                    if (isLODGroup && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !hasBoxCollider)
-                    {
-                        // Find the "Collider" or "colider" child object
-                        Transform colliderTransform = FindChildTransform(obj, "collider", "colider", "col");
-                        float sizeOnY = GetMeshSizeOnY(obj, obj);
-                        // Check the child's active state or existence
-                        bool coliderDisabled = colliderTransform == null || (!colliderTransform.gameObject.activeSelf);
-                        if ((!coliderDisabled && sizeOnY >= 0 && sizeOnY <= 1) || (coliderDisabled && sizeOnY <= 2))
-                        {
-                            obj.SetActive(false);
-                        }
-                        //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
-                    }
+                    obj.SetActive(false);
+                    //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
                 }
             }
         }
@@ -121,7 +110,6 @@ namespace TYR_DeClutterer
                     AddChildren(root.transform, allGameObjects);
                 }
             }
-            deCluttered = true;
             return allGameObjects.ToArray();
         }
         private void AddChildren(Transform parent, List<GameObject> objectsList)
@@ -142,146 +130,150 @@ namespace TYR_DeClutterer
                 AddChildren(child, objectsList);
             }
         }
-        private List<string> clutterNameList = new List<string>
+        private Dictionary<string, bool> clutterNameDictionary = new Dictionary<string, bool>
         {
-            
         };
-        private string[] clutterNames;
         private void InitializeClutterNames()
         {
             if (declutterGarbageEnabledConfig.Value)
             {
-                clutterNameList.Add("kaska");
-                clutterNameList.Add("boot_");
-                clutterNameList.Add("garbage_stone");
-                clutterNameList.Add("garbage_paper");
-                clutterNameList.Add("cable");
-                clutterNameList.Add("drawing_");
-                clutterNameList.Add("paper_");
-                clutterNameList.Add("_paper");
-                clutterNameList.Add("paper1");
-                clutterNameList.Add("paper2");
-                clutterNameList.Add("paper3");
-                clutterNameList.Add("paper4");
-                clutterNameList.Add("paper5");
-                clutterNameList.Add("paper6");
-                clutterNameList.Add("paper7");
-                clutterNameList.Add("paper8");
-                clutterNameList.Add("paper9");
-                clutterNameList.Add("poster1");
-                clutterNameList.Add("poster2");
-                clutterNameList.Add("poster3");
-                clutterNameList.Add("poster4");
-                clutterNameList.Add("poster5");
-                clutterNameList.Add("poster6");
-                clutterNameList.Add("poster7");
-                clutterNameList.Add("poster8");
-                clutterNameList.Add("poster9");
-                clutterNameList.Add("_junk");
-                clutterNameList.Add("junk_");
-                clutterNameList.Add("_trash");
-                clutterNameList.Add("trash_");
-                clutterNameList.Add("cardboard_");
-                clutterNameList.Add("_cardboard");
-                clutterNameList.Add("sticks");
-                clutterNameList.Add("cloth_");
-                clutterNameList.Add("shards_");
-                clutterNameList.Add("_shards");
-                clutterNameList.Add("dishes_");
-                clutterNameList.Add("cutlery_");
-                clutterNameList.Add("book_");
-                clutterNameList.Add("books_");
-                clutterNameList.Add("folder_");
-                clutterNameList.Add("folders_");
-                clutterNameList.Add("magazine_");
-                clutterNameList.Add("magazines_");
-                clutterNameList.Add("fuel_tube");
+                clutterNameDictionary["kaska"] = true;
+                clutterNameDictionary["boot_"] = true;
+                clutterNameDictionary["garbage_stone"] = true;
+                clutterNameDictionary["garbage_paper"] = true;
+                clutterNameDictionary["cable"] = true;
+                clutterNameDictionary["drawing_"] = true;
+                clutterNameDictionary["paper_"] = true;
+                clutterNameDictionary["_paper"] = true;
+                clutterNameDictionary["paper1"] = true;
+                clutterNameDictionary["paper2"] = true;
+                clutterNameDictionary["paper3"] = true;
+                clutterNameDictionary["paper4"] = true;
+                clutterNameDictionary["paper5"] = true;
+                clutterNameDictionary["paper6"] = true;
+                clutterNameDictionary["paper7"] = true;
+                clutterNameDictionary["paper8"] = true;
+                clutterNameDictionary["paper9"] = true;
+                clutterNameDictionary["poster1"] = true;
+                clutterNameDictionary["poster2"] = true;
+                clutterNameDictionary["poster3"] = true;
+                clutterNameDictionary["poster4"] = true;
+                clutterNameDictionary["poster5"] = true;
+                clutterNameDictionary["poster6"] = true;
+                clutterNameDictionary["poster7"] = true;
+                clutterNameDictionary["poster8"] = true;
+                clutterNameDictionary["poster9"] = true;
+                clutterNameDictionary["_junk"] = true;
+                clutterNameDictionary["junk_"] = true;
+                clutterNameDictionary["_trash"] = true;
+                clutterNameDictionary["trash_"] = true;
+                clutterNameDictionary["cardboard_"] = true;
+                clutterNameDictionary["_cardboard"] = true;
+                clutterNameDictionary["sticks"] = true;
+                clutterNameDictionary["cloth_"] = true;
+                clutterNameDictionary["dishes_"] = true;
+                clutterNameDictionary["cutlery_"] = true;
+                clutterNameDictionary["book_"] = true;
+                clutterNameDictionary["books_"] = true;
+                clutterNameDictionary["folder_"] = true;
+                clutterNameDictionary["folders_"] = true;
+                clutterNameDictionary["magazine_"] = true;
+                clutterNameDictionary["magazines_"] = true;
+                clutterNameDictionary["fuel_tube"] = true;
             }
 
             if (declutterHeapsEnabledConfig.Value)
             {
-                clutterNameList.Add("crushed_concreate");
-                clutterNameList.Add("crushed_concrete");
-                clutterNameList.Add("baked_garbage");
-                clutterNameList.Add("garbage");
-                clutterNameList.Add("garbage_constructor");
-                clutterNameList.Add("_garb");
-                clutterNameList.Add("garb_");
-                clutterNameList.Add("_scrap");
-                clutterNameList.Add("scrap_");
-                clutterNameList.Add("heap_");
-                clutterNameList.Add("_heap");
-                clutterNameList.Add("_pile");
-                clutterNameList.Add("pile_");
-                clutterNameList.Add("_rubble");
-                clutterNameList.Add("rubble_");
-                clutterNameList.Add("scatter_");
-                clutterNameList.Add("_scatter");
-                clutterNameList.Add("scattered_");
-                clutterNameList.Add("_scattered");
-                clutterNameList.Add("_floorset");
-                clutterNameList.Add("floorset_");
-                clutterNameList.Add("glass_crush");
-                clutterNameList.Add("plite_crush");
-                clutterNameList.Add("lesa_crush");
-                clutterNameList.Add("brick_pile");
-                clutterNameList.Add("poletelen01");
-                clutterNameList.Add("poletelen02");
-                clutterNameList.Add("poletelen03");
-                clutterNameList.Add("poletelen04");
-                clutterNameList.Add("poletelen05");
-                clutterNameList.Add("poletelen06");
-                clutterNameList.Add("poletelen07");
-                clutterNameList.Add("poletelen08");
-                clutterNameList.Add("poletelen09");
+                clutterNameDictionary["crushed_concrete"] = true;
+                clutterNameDictionary["crushed_concreate"] = true;
+                clutterNameDictionary["baked_garbage"] = true;
+                clutterNameDictionary["garbage"] = true;
+                clutterNameDictionary["garbage_"] = true;
+                clutterNameDictionary["_garbage"] = true;
+                clutterNameDictionary["garbage_constructor"] = true;
+                clutterNameDictionary["_garb"] = true;
+                clutterNameDictionary["garb_"] = true;
+                clutterNameDictionary["_scrap"] = true;
+                clutterNameDictionary["scrap_"] = true;
+                clutterNameDictionary["heap_"] = true;
+                clutterNameDictionary["_heap"] = true;
+                clutterNameDictionary["_pile"] = true;
+                clutterNameDictionary["pile_"] = true;
+                clutterNameDictionary["_rubble"] = true;
+                clutterNameDictionary["rubble_"] = true;
+                clutterNameDictionary["scatter_"] = true;
+                clutterNameDictionary["_scatter"] = true;
+                clutterNameDictionary["scattered_"] = true;
+                clutterNameDictionary["_scattered"] = true;
+                clutterNameDictionary["_floorset"] = true;
+                clutterNameDictionary["floorset_"] = true;
+                clutterNameDictionary["brick_pile"] = true;
+                clutterNameDictionary["poletelen01"] = true;
+                clutterNameDictionary["poletelen02"] = true;
+                clutterNameDictionary["poletelen03"] = true;
+                clutterNameDictionary["poletelen04"] = true;
+                clutterNameDictionary["poletelen05"] = true;
+                clutterNameDictionary["poletelen06"] = true;
+                clutterNameDictionary["poletelen07"] = true;
+                clutterNameDictionary["poletelen08"] = true;
+                clutterNameDictionary["poletelen09"] = true;
             }
 
             if (declutterSpentCartridgesEnabledConfig.Value)
             {
-                clutterNameList.Add("shotshell_");
-                clutterNameList.Add("shells_");
-                clutterNameList.Add("_shotshell");
-                clutterNameList.Add("_shells");
-                clutterNameList.Add("rifleshell_");
-                clutterNameList.Add("_rifleshell");
+                clutterNameDictionary["shotshell_"] = true;
+                clutterNameDictionary["shells_"] = true;
+                clutterNameDictionary["_shotshell"] = true;
+                clutterNameDictionary["_shells"] = true;
+                clutterNameDictionary["rifleshell_"] = true;
+                clutterNameDictionary["_rifleshell"] = true;
             }
 
             if (declutterFakeFoodEnabledConfig.Value)
             {
-                clutterNameList.Add("canned");
-                clutterNameList.Add("can_");
-                clutterNameList.Add("juice_");
-                clutterNameList.Add("carton_");
-                clutterNameList.Add("_creased");
-                clutterNameList.Add("bottle");
-                clutterNameList.Add("crackers_");
-                clutterNameList.Add("oat_flakes");
-                clutterNameList.Add("chocolate_");
-                clutterNameList.Add("biscuits");
-                clutterNameList.Add("package_");
-                clutterNameList.Add("cigarette_");
-                clutterNameList.Add("medkit_");
+                clutterNameDictionary["canned"] = true;
+                clutterNameDictionary["can_"] = true;
+                clutterNameDictionary["juice_"] = true;
+                clutterNameDictionary["carton_"] = true;
+                clutterNameDictionary["_creased"] = true;
+                clutterNameDictionary["bottle"] = true;
+                clutterNameDictionary["crackers_"] = true;
+                clutterNameDictionary["oat_flakes"] = true;
+                clutterNameDictionary["chocolate_"] = true;
+                clutterNameDictionary["biscuits"] = true;
+                clutterNameDictionary["package_"] = true;
+                clutterNameDictionary["cigarette_"] = true;
+                clutterNameDictionary["medkit_"] = true;
             }
 
             if (declutterDecalsEnabledConfig.Value)
             {
-                clutterNameList.Add("goshan_decal");
-                clutterNameList.Add("ground_decal");
-                clutterNameList.Add("decalgraffiti");
-                clutterNameList.Add("blood_");
-                clutterNameList.Add("_blood");
-                clutterNameList.Add("sand_decal");
-                clutterNameList.Add("decal_dirt");
-                clutterNameList.Add("decal_drip");
+                clutterNameDictionary["goshan_decal"] = true;
+                clutterNameDictionary["ground_decal"] = true;
+                clutterNameDictionary["decalgraffiti"] = true;
+                clutterNameDictionary["blood_"] = true;
+                clutterNameDictionary["_blood"] = true;
+                clutterNameDictionary["sand_decal"] = true;
+                clutterNameDictionary["decal_dirt"] = true;
+                clutterNameDictionary["decal_drip"] = true;
             }
 
             if (declutterPuddlesEnabledConfig.Value)
             {
-                clutterNameList.Add("puddles_");
-                clutterNameList.Add("_puddles");
+                clutterNameDictionary["puddle"] = true;
+                clutterNameDictionary["puddles_"] = true;
+                clutterNameDictionary["_puddles"] = true;
+                clutterNameDictionary["puddle group"] = true;
             }
 
-            clutterNames = clutterNameList.ToArray();
+            if (declutterShardsEnabledConfig.Value)
+            {
+                clutterNameDictionary["glass_crush"] = true;
+                clutterNameDictionary["plite_crush"] = true;
+                clutterNameDictionary["lesa_crush"] = true;
+                clutterNameDictionary["shards_"] = true;
+                clutterNameDictionary["_shards"] = true;
+            }
         }
         private bool ShouldDisableObject(GameObject obj)
         {
@@ -291,6 +283,7 @@ namespace TYR_DeClutterer
                 return false;
             }
 
+            GameObject childGameObject = null;
             string objName = obj.name.ToLower();
             bool isLODGroup = obj.GetComponent<LODGroup>() != null;
             bool isMesh = obj.GetComponent<MeshRenderer>() != null;
@@ -299,106 +292,62 @@ namespace TYR_DeClutterer
             bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
             bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
             bool hasBoxCollider = obj.GetComponent<BoxCollider>()?.enabled ?? false;
+            bool childHasMesh = obj.transform.GetComponent<MeshRenderer>() != null;
 
-            GameObject childGameObject = null;
-
-            foreach (Transform child in obj.transform)
+            if (isLODGroup)
             {
-                if (child.GetComponent<MeshRenderer>() != null)
+                //EFT.UI.ConsoleScreen.LogError("Found Lod Group " + obj.name);
+                bool foundClutterName = clutterNameDictionary.Keys.Any(key => obj.name.ToLower().Contains(key.ToLower()));
+                if (foundClutterName)
                 {
-                    childGameObject = child.gameObject;
-                    bool childHasMesh1 = childGameObject != null && childGameObject.GetComponent<MeshRenderer>() != null;
-                    bool childHasRainCondensator1 = childGameObject != null && childGameObject.GetComponent<RainCondensator>() != null;
-                    bool childHasBoxCollider1 = childGameObject != null && childGameObject.GetComponent<BoxCollider>() != null;
-                    bool childIsTarkovObservedItem1 = childGameObject != null && childGameObject.GetComponent<ObservedLootItem>() != null;
-                    bool childIsTarkovItem1 = childGameObject != null && childGameObject.GetComponent<LootItem>() != null;
-                    bool childIsTarkovWeaponMod1 = childGameObject != null && childGameObject.GetComponent<WeaponModPoolObject>() != null;
-                    foreach (string name in clutterNames)
+                    //EFT.UI.ConsoleScreen.LogError("Found Clutter Name" + obj.name);
+                    foreach (Transform child in obj.transform)
                     {
-                        bool isExactMatch = !name.Contains("_");
-                        string pattern = isExactMatch ? $"^{name}( \\(\\d+\\))?$" : name;
-                        if ((System.Text.RegularExpressions.Regex.IsMatch(objName, pattern) ||
-                            (!isExactMatch && objName.Contains(name))) &&
-                            ((isLODGroup && childHasMesh1) || (isLODGroup && isMesh)) &&
-                            !objName.Contains("audio") &&
-                            !objName.Contains("weapon") &&
-                            !objName.Contains("barter") &&
-                            !isTarkovObservedItem &&
-                            !isTarkovItem &&
-                            !isTarkovWeaponMod &&
-                            !hasRainCondensator &&
-                            !hasBoxCollider &&
-                            !childHasRainCondensator1 &&
-                            !childHasBoxCollider1 &&
-                            !childIsTarkovObservedItem1 &&
-                            !childIsTarkovItem1 &&
-                            !childIsTarkovWeaponMod1)
+                        if (child.GetComponent<MeshRenderer>() != null)
                         {
-                            float sizeOnY = GetMeshSizeOnY(obj, childGameObject);
-
-                            // Find the "Collider" or "colider" child object
-                            Transform colliderTransform = FindChildTransform(obj, "collider", "colider", "col");
-
-                            // Check the child's active state or existence
-                            bool coliderDisabled = colliderTransform == null || (!colliderTransform.gameObject.activeSelf);
-
-                            if ((!coliderDisabled && sizeOnY >= 0 && sizeOnY <= 1) || (coliderDisabled && sizeOnY <= 2))
-                            {
-                                return true;
-                            }
+                            childGameObject = child.gameObject;
+                            childHasMesh = childGameObject != null && childGameObject.GetComponent<MeshRenderer>() != null;
+                            //EFT.UI.ConsoleScreen.LogError("Found child with same name as LOD Group and has mesh " + child.name);
                         }
                     }
-                    return false;
-                }
-            }
-            bool childHasMesh = childGameObject != null && childGameObject.GetComponent<MeshRenderer>() != null;
-            bool childHasRainCondensator = childGameObject != null && childGameObject.GetComponent<RainCondensator>() != null;
-            bool childHasBoxCollider = childGameObject != null && childGameObject.GetComponent<BoxCollider>() != null;
-            bool childIsTarkovObservedItem = childGameObject != null && childGameObject.GetComponent<ObservedLootItem>() != null;
-            bool childIsTarkovItem = childGameObject != null && childGameObject.GetComponent<LootItem>() != null;
-            bool childIsTarkovWeaponMod = childGameObject != null && childGameObject.GetComponent<WeaponModPoolObject>() != null;
-            foreach (string name in clutterNames)
-            {
-                bool isExactMatch = !name.Contains("_");
-                string pattern = isExactMatch ? $"^{name}( \\(\\d+\\))?$" : name;
-                if ((System.Text.RegularExpressions.Regex.IsMatch(objName, pattern) ||
-                    (!isExactMatch && objName.Contains(name))) &&
-                    ((isLODGroup && childHasMesh) || (isLODGroup && isMesh)) &&
-                    !objName.Contains("audio") &&
-                    !objName.Contains("weapon") &&
-                    !objName.Contains("barter") &&
-                    !isTarkovObservedItem &&
-                    !isTarkovItem &&
-                    !isTarkovWeaponMod &&
-                    !hasRainCondensator &&
-                    !hasBoxCollider &&
-                    !childHasRainCondensator &&
-                    !childHasBoxCollider &&
-                    !childIsTarkovObservedItem &&
-                    !childIsTarkovItem &&
-                    !childIsTarkovWeaponMod)
-                {
-                    float sizeOnY = GetMeshSizeOnY(obj, childGameObject);
-
-                    // Find the "Collider" or "colider" child object
-                    Transform colliderTransform = FindChildTransform(obj, "collider", "colider", "col");
-
-                    // Check the child's active state or existence
-                    bool coliderDisabled = colliderTransform == null || (!colliderTransform.gameObject.activeSelf);
-
-                    if ((!coliderDisabled && sizeOnY >= 0 && sizeOnY <= 1) || (coliderDisabled && sizeOnY <= 2))
+                    if ((isMesh || childHasMesh) &&
+                        (!objName.Contains("audio") &&
+                        !objName.Contains("weapon") &&
+                        !objName.Contains("barter") &&
+                        !isTarkovObservedItem &&
+                        !isTarkovItem &&
+                        !isTarkovWeaponMod &&
+                        !hasRainCondensator &&
+                        !hasBoxCollider))
                     {
-                        return true;
+                        //EFT.UI.ConsoleScreen.LogError("Passed the bullshit brigade " + obj.name);
+                        float sizeOnY = GetMeshSizeOnY(obj, childGameObject);
+
+                        // Find the "Collider" or "colider" child object
+                        Transform colliderTransform = FindChildTransform(obj, childGameObject, new string[] { "collider", "colider", "col" });
+
+                        // Check the child's active state or existence
+                        bool coliderDisabled = colliderTransform == null || (!colliderTransform.gameObject.activeSelf);
+
+                        if ((!coliderDisabled && sizeOnY >= 0 && sizeOnY <= 0.4 * declutterScaleOffsetConfig.Value) || (coliderDisabled && sizeOnY <= 1.2 * declutterScaleOffsetConfig.Value))
+                        {
+                            return true;
+                        }
                     }
                 }
             }
             return false;
         }
-        private Transform FindChildTransform(GameObject obj, params string[] namesToFind)
+        private Transform FindChildTransform(GameObject obj, GameObject childGameObject, string[] namesToFind)
         {
+            if (obj == null || childGameObject == null || namesToFind == null)
+            {
+                return null; // Handle null objects or namesToFind
+            }
+
             foreach (string nameToFind in namesToFind)
             {
-                Transform childTransform = obj.transform.Find(nameToFind);
+                Transform childTransform = obj.transform.Find(nameToFind) ?? childGameObject.transform.Find(nameToFind);
                 if (childTransform != null)
                 {
                     return childTransform;
