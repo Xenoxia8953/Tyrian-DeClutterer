@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\thebo\\Desktop\\TarkovProjects\\GithubStuff\\Client Mod Stuff\\DeClutterer\\TYR_DeClutterer.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\thebo\\Desktop\\TarkovProjects\\GithubStuff\\Client Mod Stuff\\DeClutterer\\TYR_DeClutterer.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\thebo\\Desktop\\TarkovProjects\\GithubStuff\\Client Mod Stuff\\DeClutterer\\TYR_DeClutterer.csproj",
+        "projectName": "TYR_DeClutterer",
+        "projectPath": "C:\\Users\\thebo\\Desktop\\TarkovProjects\\GithubStuff\\Client Mod Stuff\\DeClutterer\\TYR_DeClutterer.csproj",
+        "packagesPath": "C:\\Users\\thebo\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\thebo\\Desktop\\TarkovProjects\\GithubStuff\\Client Mod Stuff\\DeClutterer\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\thebo\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\5.0.416\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
