@@ -6,6 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Tyrian-DeClutterer\**" />
+    <EmbeddedResource Remove="Tyrian-DeClutterer\**" />
+    <None Remove="Tyrian-DeClutterer\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="Aki.Reflection">
       <HintPath>..\..\..\Shared\Aki.Reflection.dll</HintPath>
     </Reference>

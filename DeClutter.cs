@@ -1,4 +1,5 @@
 ﻿using BepInEx;
+using BepInEx.Configuration;
 using Comfort.Common;
 using EFT;
 using EFT.Interactive;
@@ -15,10 +16,27 @@ namespace TYR_DeClutterer
         public static bool MapLoaded() => Singleton<GameWorld>.Instantiated;
         public static Player Player;
         private bool deCluttered = false;
+        public static ConfigEntry<bool> declutterEnabledConfig;
+        public static ConfigEntry<bool> declutterGarbageEnabledConfig;
+        public static ConfigEntry<bool> declutterHeapsEnabledConfig;
+        public static ConfigEntry<bool> declutterSpentCartridgesEnabledConfig;
+        public static ConfigEntry<bool> declutterFakeFoodEnabledConfig;
+        public static ConfigEntry<bool> declutterDecalsEnabledConfig;
+        public static ConfigEntry<bool> declutterPuddlesEnabledConfig;
 
         private void Awake()
         {
             SceneManager.sceneUnloaded += OnSceneUnloaded;
+
+            InitializeClutterNames();
+
+            declutterEnabledConfig = Config.Bind("A - De-Clutter Settings", "De-Clutterer Enabled", true, "Enables the De-Clutterer");
+            declutterGarbageEnabledConfig = Config.Bind("A - De-Clutter Settings", "Garbage De-Clutter", true, "De-Clutters things labeled 'garbage' or similar. Smaller garbage piles.");
+            declutterHeapsEnabledConfig = Config.Bind("A - De-Clutter Settings", "Heaps De-Clutter", true, "De-Clutters things labeled 'heaps' or similar. Larger garbage piles.");
+            declutterSpentCartridgesEnabledConfig = Config.Bind("A - De-Clutter Settings", "Spent Cartridges De-Clutter", true, "De-Clutters pre-generated spent ammunition on floor.");
+            declutterFakeFoodEnabledConfig = Config.Bind("A - De-Clutter Settings", "Fake Food De-Clutter", true, "De-Clutters fake 'food' items.");
+            declutterDecalsEnabledConfig = Config.Bind("A - De-Clutter Settings", "Decal De-Clutter", true, "De-Clutters decals (Blood, grafiti, etc.)");
+            declutterPuddlesEnabledConfig = Config.Bind("A - De-Clutter Settings", "Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
         }
         private void OnSceneUnloaded(Scene scene)
         {
@@ -26,7 +44,7 @@ namespace TYR_DeClutterer
         }
         private void Update()
         {
-            if (!MapLoaded() || deCluttered || IsInHideout())
+            if (!MapLoaded() || deCluttered || IsInHideout() || !declutterEnabledConfig.Value)
                 return;
 
             gameWorld = Singleton<GameWorld>.Instance;
@@ -88,49 +106,103 @@ namespace TYR_DeClutterer
                 AddChildren(child, objectsList);
             }
         }
-        private readonly string[] clutterNames = {
+        private List<string> clutterNameList = new List<string>
+        {
             "book_",
             "books_",
-            "shotshell_",
-            "shells_",
-            "garb_", 
-            "_garb",
-            "_floorset",
-            "floorset_",
-            "cutlery_",
-            "dishes_",
-            "bottle_",
-            "glass_crush",
-            "goshan_decal",
-            "ground_decal",
-            "stick",
-            "shards_",
-            "_shards",
-            "rubble_",
-            "_rubble",
-            "paper_",
-            "_paper",
-            "puddle_",
-            "_puddle",
-            "garbage",
-            "heap_", 
-            "_heap",
-            "_scrap", 
-            "scrap_",
-            "scatter_",
-            "_junk", 
-            "junk_",
-            "_trash",
-            "trash_",
-            "_pile",
-            "pile_",
-            "cloth_",
-            "cardboard_",
-            "scatter_",
-            "scattered_",
-            "sand_decal",
-            "decalgraffiti"
+            // Add other default clutter names here
         };
+        private string[] clutterNames;
+        private void InitializeClutterNames()
+        {
+            if (declutterGarbageEnabledConfig.Value)
+            {
+                clutterNameList.Add("garbage");
+                clutterNameList.Add("_garb");
+                clutterNameList.Add("garb_");
+                clutterNameList.Add("_scrap");
+                clutterNameList.Add("scrap_");
+                clutterNameList.Add("paper_");
+                clutterNameList.Add("_paper");
+                clutterNameList.Add("scatter_");
+                clutterNameList.Add("_scatter");
+                clutterNameList.Add("scattered_");
+                clutterNameList.Add("_scattered");
+                clutterNameList.Add("_junk");
+                clutterNameList.Add("junk_");
+                clutterNameList.Add("_trash");
+                clutterNameList.Add("trash_");
+                clutterNameList.Add("cardboard_");
+                clutterNameList.Add("_cardboard");
+                clutterNameList.Add("sticks");
+                clutterNameList.Add("cloth_");
+                clutterNameList.Add("shards_");
+                clutterNameList.Add("_shards");
+                clutterNameList.Add("glass_crush");
+                clutterNameList.Add("dishes_");
+                clutterNameList.Add("cutlery_");
+                clutterNameList.Add("_floorset");
+                clutterNameList.Add("floorset_");
+                clutterNameList.Add("book_");
+                clutterNameList.Add("books_");
+                clutterNameList.Add("folder_");
+                clutterNameList.Add("folders_");
+                clutterNameList.Add("magazine_");
+                clutterNameList.Add("magazines_");
+            }
+
+            if (declutterHeapsEnabledConfig.Value)
+            {
+                clutterNameList.Add("heap_");
+                clutterNameList.Add("_heap");
+                clutterNameList.Add("_pile");
+                clutterNameList.Add("pile_");
+                clutterNameList.Add("_rubble");
+                clutterNameList.Add("rubble_");
+            }
+
+            if (declutterSpentCartridgesEnabledConfig.Value)
+            {
+                clutterNameList.Add("shotshell_");
+                clutterNameList.Add("shells_");
+                clutterNameList.Add("_shotshell");
+                clutterNameList.Add("_shells");
+            }
+
+            if (declutterFakeFoodEnabledConfig.Value)
+            {
+                clutterNameList.Add("canned");
+                clutterNameList.Add("can_");
+                clutterNameList.Add("juice_");
+                clutterNameList.Add("carton_");
+                clutterNameList.Add("_creased");
+                clutterNameList.Add("bottle");
+                clutterNameList.Add("crackers_");
+                clutterNameList.Add("oat_flakes");
+                clutterNameList.Add("chocolate_");
+                clutterNameList.Add("biscuits");
+                clutterNameList.Add("package_");
+            }
+
+            if (declutterDecalsEnabledConfig.Value)
+            {
+                clutterNameList.Add("goshan_decal");
+                clutterNameList.Add("ground_decal");
+                clutterNameList.Add("decalgraffiti");
+                clutterNameList.Add("decal_");
+                clutterNameList.Add("_decal");
+                clutterNameList.Add("blood_");
+                clutterNameList.Add("_blood");
+            }
+
+            if (declutterPuddlesEnabledConfig.Value)
+            {
+                clutterNameList.Add("puddles_");
+                clutterNameList.Add("_puddles");
+            }
+
+            clutterNames = clutterNameList.ToArray();
+        }
         private readonly string[] subModelNames = {
             "model",
             "musor"
@@ -178,7 +250,7 @@ namespace TYR_DeClutterer
                         Transform colliderTransform = obj.transform.Find("Collider");
                         bool coliderDisabled = colliderTransform != null && !colliderTransform.gameObject.activeSelf;
                         bool coliderExists = colliderTransform != null;
-                        if ((sizeOnY >= 0 && sizeOnY <= 0.4) || ((coliderDisabled || !coliderExists) && sizeOnY <= 2))
+                        if ((sizeOnY >= 0 && sizeOnY <= 0.2) || ((coliderDisabled || !coliderExists) && sizeOnY <= 2))
                         {
                             return true;
                         }
@@ -202,7 +274,7 @@ namespace TYR_DeClutterer
                         Transform colliderTransform = obj.transform.Find("colider");
                         bool coliderDisabled = colliderTransform != null && !colliderTransform.gameObject.activeSelf;
                         bool coliderExists = colliderTransform != null;
-                        if ((childSizeOnY >= 0 && childSizeOnY <= 0.4) || ((coliderDisabled || !coliderExists) && childSizeOnY <= 2))
+                        if ((childSizeOnY >= 0 && childSizeOnY <= 0.2) || ((coliderDisabled || !coliderExists) && childSizeOnY <= 2))
                         {
                             return true;
                         }
