@@ -27,16 +27,14 @@ namespace TYR_DeClutterer
         private void Awake()
         {
             SceneManager.sceneUnloaded += OnSceneUnloaded;
-
+            declutterEnabledConfig = Config.Bind("A - De-Clutter Enabler", "De-Clutterer Enabled", true, "Enables the De-Clutterer");
+            declutterGarbageEnabledConfig = Config.Bind("B - De-Clutter Settings", "A - Garbage & Litter De-Clutter", true, "De-Clutters things labeled 'garbage' or similar. Smaller garbage piles.");
+            declutterHeapsEnabledConfig = Config.Bind("B - De-Clutter Settings", "B - Heaps & Piles De-Clutter", true, "De-Clutters things labeled 'heaps' or similar. Larger garbage piles.");
+            declutterSpentCartridgesEnabledConfig = Config.Bind("B - De-Clutter Settings", "C - Spent Cartridges De-Clutter", true, "De-Clutters pre-generated spent ammunition on floor.");
+            declutterFakeFoodEnabledConfig = Config.Bind("B - De-Clutter Settings", "D - Fake Food De-Clutter", true, "De-Clutters fake 'food' items.");
+            declutterDecalsEnabledConfig = Config.Bind("B - De-Clutter Settings", "E - Decal De-Clutter", true, "De-Clutters decals (Blood, grafiti, etc.)");
+            declutterPuddlesEnabledConfig = Config.Bind("B - De-Clutter Settings", "F - Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
             InitializeClutterNames();
-
-            declutterEnabledConfig = Config.Bind("A - De-Clutter Settings", "De-Clutterer Enabled", true, "Enables the De-Clutterer");
-            declutterGarbageEnabledConfig = Config.Bind("A - De-Clutter Settings", "Garbage De-Clutter", true, "De-Clutters things labeled 'garbage' or similar. Smaller garbage piles.");
-            declutterHeapsEnabledConfig = Config.Bind("A - De-Clutter Settings", "Heaps De-Clutter", true, "De-Clutters things labeled 'heaps' or similar. Larger garbage piles.");
-            declutterSpentCartridgesEnabledConfig = Config.Bind("A - De-Clutter Settings", "Spent Cartridges De-Clutter", true, "De-Clutters pre-generated spent ammunition on floor.");
-            declutterFakeFoodEnabledConfig = Config.Bind("A - De-Clutter Settings", "Fake Food De-Clutter", true, "De-Clutters fake 'food' items.");
-            declutterDecalsEnabledConfig = Config.Bind("A - De-Clutter Settings", "Decal De-Clutter", true, "De-Clutters decals (Blood, grafiti, etc.)");
-            declutterPuddlesEnabledConfig = Config.Bind("A - De-Clutter Settings", "Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
         }
         private void OnSceneUnloaded(Scene scene)
         {
@@ -108,9 +106,7 @@ namespace TYR_DeClutterer
         }
         private List<string> clutterNameList = new List<string>
         {
-            "book_",
-            "books_",
-            // Add other default clutter names here
+            
         };
         private string[] clutterNames;
         private void InitializeClutterNames()
