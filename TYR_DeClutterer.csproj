@@ -33,6 +33,9 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\..\Shared\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+	  <Reference Include="UnityEngine.PhysicsModule">
+		  <HintPath>..\..\..\Shared\UnityEngine.PhysicsModule.dll</HintPath>
+	  </Reference>
   </ItemGroup>
 
 </Project>

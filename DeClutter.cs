@@ -2,6 +2,7 @@
 using BepInEx.Configuration;
 using Comfort.Common;
 using EFT;
+using EFT.AssetsManager;
 using EFT.Interactive;
 using System.Collections.Generic;
 using UnityEngine;
@@ -75,8 +76,22 @@ namespace TYR_DeClutterer
             {
                 if (ShouldDisableObject(obj))
                 {
-                    obj.SetActive(false);
-                    //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
+                    bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
+                    bool isTarkovItem = obj.GetComponent<LootItem>() != null;
+                    bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
+                    bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
+                    bool hasBoxCollider = obj.GetComponent<BoxCollider>() != null;
+                    if (!isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !hasBoxCollider)
+                    {
+                        obj.SetActive(false);
+                        Transform colliderTransform = obj.transform.Find("Collider");
+                        if (colliderTransform != null)
+                        {
+                            GameObject colliderObject = colliderTransform.gameObject;
+                            colliderObject.SetActive(false);
+                        }
+                        //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
+                    }
                 }
             }
         }
@@ -87,11 +102,19 @@ namespace TYR_DeClutterer
 
             foreach (GameObject root in rootObjects)
             {
-                // Add the root object
-                allGameObjects.Add(root);
+                bool isTarkovObservedItem = root.GetComponent<ObservedLootItem>() != null;
+                bool isTarkovItem = root.GetComponent<LootItem>() != null;
+                bool isTarkovWeaponMod = root.GetComponent<WeaponModPoolObject>() != null;
+                bool hasRainCondensator = root.GetComponent<RainCondensator>() != null;
+                bool hasBoxCollider = root.GetComponent<BoxCollider>() != null;
+                if (!isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !hasBoxCollider)
+                {
+                    // Add the root object
+                    allGameObjects.Add(root);
 
-                // Recursively add children
-                AddChildren(root.transform, allGameObjects);
+                    // Recursively add children
+                    AddChildren(root.transform, allGameObjects);
+                }
             }
             deCluttered = true;
             return allGameObjects.ToArray();
@@ -227,9 +250,13 @@ namespace TYR_DeClutterer
             bool hasStaticDeferredDecal = obj.GetComponent<StaticDeferredDecal>() != null;
             bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
             bool isTarkovItem = obj.GetComponent<LootItem>() != null;
+            bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
+            bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
+            bool hasBoxCollider = obj.GetComponent<BoxCollider>() != null;
             foreach (string name in clutterNames)
             {
-                if (objName.Contains(name) && (hasMesh || childHasMesh || hasStaticDeferredDecal) && !objName.Contains("audio") && !isTarkovObservedItem && !isTarkovItem)
+                if (objName.Contains(name) && (hasMesh || childHasMesh || hasStaticDeferredDecal) && !objName.Contains("audio") 
+                    && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !hasBoxCollider)
                 {
                     if (hasMesh)
                     {
@@ -246,7 +273,7 @@ namespace TYR_DeClutterer
                         Transform colliderTransform = obj.transform.Find("Collider");
                         bool coliderDisabled = colliderTransform != null && !colliderTransform.gameObject.activeSelf;
                         bool coliderExists = colliderTransform != null;
-                        if ((sizeOnY >= 0 && sizeOnY <= 0.2) || ((coliderDisabled || !coliderExists) && sizeOnY <= 2))
+                        if ((sizeOnY >= 0 && sizeOnY <= 0.25) || ((coliderDisabled || !coliderExists) && sizeOnY <= 2))
                         {
                             return true;
                         }
@@ -270,7 +297,7 @@ namespace TYR_DeClutterer
                         Transform colliderTransform = obj.transform.Find("colider");
                         bool coliderDisabled = colliderTransform != null && !colliderTransform.gameObject.activeSelf;
                         bool coliderExists = colliderTransform != null;
-                        if ((childSizeOnY >= 0 && childSizeOnY <= 0.2) || ((coliderDisabled || !coliderExists) && childSizeOnY <= 2))
+                        if ((childSizeOnY >= 0 && childSizeOnY <= 0.25) || ((coliderDisabled || !coliderExists) && childSizeOnY <= 2))
                         {
                             return true;
                         }
