@@ -3,19 +3,24 @@ using BepInEx.Configuration;
 using Comfort.Common;
 using EFT;
 using EFT.AssetsManager;
+using EFT.Ballistics;
 using EFT.Interactive;
+using Koenigz.PerfectCulling.EFT;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace TYR_DeClutterer
 {
-    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.5")]
+    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.7")]
     public class DeClutter : BaseUnityPlugin
     {
         private static GameWorld gameWorld;
         public static bool MapLoaded() => Singleton<GameWorld>.Instantiated;
+        public static List<GameObject> savedClutterObjects = new List<GameObject>();
         public static Player Player;
         private bool deCluttered = false;
         public static ConfigEntry<bool> declutterEnabledConfig;
@@ -27,11 +32,13 @@ namespace TYR_DeClutterer
         public static ConfigEntry<bool> declutterPuddlesEnabledConfig;
         public static ConfigEntry<bool> declutterShardsEnabledConfig;
         public static ConfigEntry<float> declutterScaleOffsetConfig;
+        public static bool applyDeclutter = false;
 
         private void Awake()
         {
             SceneManager.sceneUnloaded += OnSceneUnloaded;
             declutterEnabledConfig = Config.Bind("A - De-Clutter Enabler", "A - De-Clutterer Enabled", true, "Enables the De-Clutterer");
+            applyDeclutter = declutterEnabledConfig.Value;
             declutterScaleOffsetConfig = Config.Bind<float>("A - De-Clutter Enabler", "B - De-Clutterer Scaler", 1f, new BepInEx.Configuration.ConfigDescription("Larger Scale = Larger the Clutter Removed.", new BepInEx.Configuration.AcceptableValueRange<float>(0.5f, 2f)));
             declutterGarbageEnabledConfig = Config.Bind("B - De-Clutter Settings", "A - Garbage & Litter De-Clutter", true, "De-Clutters things labeled 'garbage' or similar. Smaller garbage piles.");
             declutterHeapsEnabledConfig = Config.Bind("B - De-Clutter Settings", "B - Heaps & Piles De-Clutter", true, "De-Clutters things labeled 'heaps' or similar. Larger garbage piles.");
@@ -41,9 +48,29 @@ namespace TYR_DeClutterer
             declutterPuddlesEnabledConfig = Config.Bind("B - De-Clutter Settings", "F - Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
             declutterShardsEnabledConfig = Config.Bind("B - De-Clutter Settings", "G - Glass & Tile Shards", true, "De-Clutters things labeled 'shards' or similar. The things you can step on that make noise.");
             InitializeClutterNames();
+
+            // Register the SettingChanged event
+            declutterEnabledConfig.SettingChanged += OnApplyDeclutterSettingChanged;
+        }
+        private void OnApplyDeclutterSettingChanged(object sender, EventArgs e)
+        {
+            applyDeclutter = declutterEnabledConfig.Value;
+            if (deCluttered)
+            {
+                if (applyDeclutter)
+                {
+                    DeClutterEnabled();
+                }
+                else
+                {
+                    ReClutterEnabled();
+                }
+            }
+
         }
         private void OnSceneUnloaded(Scene scene)
         {
+            savedClutterObjects.Clear();
             deCluttered = false;
         }
         private void Update()
@@ -80,10 +107,30 @@ namespace TYR_DeClutterer
             GameObject[] allGameObjects = GetAllGameObjectsInScene();
             foreach (GameObject obj in allGameObjects)
             {
-                if (ShouldDisableObject(obj))
+                if (obj != null && ShouldDisableObject(obj))
                 {
                     obj.SetActive(false);
                     //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
+                }
+            }
+        }
+        private void DeClutterEnabled()
+        {
+            foreach (GameObject obj in savedClutterObjects)
+            {
+                if (obj.activeSelf == true)
+                {
+                    obj.SetActive(false);
+                }
+            }
+        }
+        private void ReClutterEnabled()
+        {
+            foreach (GameObject obj in savedClutterObjects)
+            {
+                if (obj.activeSelf == false)
+                {
+                    obj.SetActive(true);
                 }
             }
         }
@@ -95,13 +142,15 @@ namespace TYR_DeClutterer
             foreach (GameObject root in rootObjects)
             {
                 bool isLODGroup = root.GetComponent<LODGroup>() != null;
+                bool isTransform = root.GetComponent<Transform>() != null;
                 bool isMesh = root.GetComponent<MeshRenderer>() != null;
                 bool isTarkovObservedItem = root.GetComponent<ObservedLootItem>() != null;
                 bool isTarkovItem = root.GetComponent<LootItem>() != null;
                 bool isTarkovWeaponMod = root.GetComponent<WeaponModPoolObject>() != null;
                 bool hasRainCondensator = root.GetComponent<RainCondensator>() != null;
-                bool hasBoxCollider = root.GetComponent<BoxCollider>() != null;
-                if ((isLODGroup || isMesh) && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !hasBoxCollider)
+                bool isPlayer = root.GetComponent<Player>() != null;
+                bool isLocalPlayer = root.GetComponent<LocalPlayer>() != null;
+                if ((isLODGroup || isTransform || isMesh) && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !isPlayer && !isLocalPlayer)
                 {
                     // Add the root object
                     allGameObjects.Add(root);
@@ -112,22 +161,24 @@ namespace TYR_DeClutterer
             }
             return allGameObjects.ToArray();
         }
-        private void AddChildren(Transform parent, List<GameObject> objectsList)
+        private void AddChildren(Transform parent, List<GameObject> allGameObjects)
         {
             foreach (Transform child in parent)
             {
                 bool isLODGroup = child.GetComponent<LODGroup>() != null;
+                bool isTransform = child.GetComponent<Transform>() != null;
                 bool isMesh = child.GetComponent<MeshRenderer>() != null;
                 bool isTarkovObservedItem = child.GetComponent<ObservedLootItem>() != null;
                 bool isTarkovItem = child.GetComponent<LootItem>() != null;
                 bool isTarkovWeaponMod = child.GetComponent<WeaponModPoolObject>() != null;
                 bool hasRainCondensator = child.GetComponent<RainCondensator>() != null;
-                bool hasBoxCollider = child.GetComponent<BoxCollider>() != null;
-                if ((isLODGroup || isMesh) && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !hasBoxCollider)
+                bool isPlayer = child.GetComponent<Player>() != null;
+                bool isLocalPlayer = child.GetComponent<LocalPlayer>() != null;
+                if ((isLODGroup || isTransform || isMesh) && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !isPlayer && !isLocalPlayer)
                 {
-                    objectsList.Add(child.gameObject);
+                    allGameObjects.Add(child.gameObject);
                 }
-                AddChildren(child, objectsList);
+                AddChildren(child, allGameObjects);
             }
         }
         private Dictionary<string, bool> clutterNameDictionary = new Dictionary<string, bool>
@@ -137,6 +188,11 @@ namespace TYR_DeClutterer
         {
             if (declutterGarbageEnabledConfig.Value)
             {
+                clutterNameDictionary["tray_"] = true;
+                clutterNameDictionary["electronic_box"] = true;
+                clutterNameDictionary["styrofoam_"] = true;
+                clutterNameDictionary["polyethylene_set"] = true;
+                clutterNameDictionary["penyok_"] = true;
                 clutterNameDictionary["kaska"] = true;
                 clutterNameDictionary["boot_"] = true;
                 clutterNameDictionary["garbage_stone"] = true;
@@ -154,6 +210,15 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["paper7"] = true;
                 clutterNameDictionary["paper8"] = true;
                 clutterNameDictionary["paper9"] = true;
+                clutterNameDictionary["pan1"] = true;
+                clutterNameDictionary["pan2"] = true;
+                clutterNameDictionary["pan3"] = true;
+                clutterNameDictionary["pan4"] = true;
+                clutterNameDictionary["pan5"] = true;
+                clutterNameDictionary["pan6"] = true;
+                clutterNameDictionary["pan7"] = true;
+                clutterNameDictionary["pan8"] = true;
+                clutterNameDictionary["pan9"] = true;
                 clutterNameDictionary["poster1"] = true;
                 clutterNameDictionary["poster2"] = true;
                 clutterNameDictionary["poster3"] = true;
@@ -171,6 +236,8 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["_cardboard"] = true;
                 clutterNameDictionary["sticks"] = true;
                 clutterNameDictionary["cloth_"] = true;
+                clutterNameDictionary["pants_"] = true;
+                clutterNameDictionary["shirt_"] = true;
                 clutterNameDictionary["dishes_"] = true;
                 clutterNameDictionary["cutlery_"] = true;
                 clutterNameDictionary["book_"] = true;
@@ -180,10 +247,21 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["magazine_"] = true;
                 clutterNameDictionary["magazines_"] = true;
                 clutterNameDictionary["fuel_tube"] = true;
+                clutterNameDictionary["city_garbage_"] = true;
+                clutterNameDictionary["city_road_garbage"] = true;
+                clutterNameDictionary["reserve_garbage_"] = true;
+                clutterNameDictionary["reserve_road_garbage"] = true;
+                clutterNameDictionary["garbage_parking_"] = true;
+                clutterNameDictionary["goshan_garbage"] = true;
+                clutterNameDictionary["package_garbage"] = true;
+                clutterNameDictionary["wood_board"] = true;
+                clutterNameDictionary["leaves_"] = true;
             }
 
             if (declutterHeapsEnabledConfig.Value)
             {
+                clutterNameDictionary["trash_pile_"] = true;
+                clutterNameDictionary["_trash_pile"] = true;
                 clutterNameDictionary["crushed_concrete"] = true;
                 clutterNameDictionary["crushed_concreate"] = true;
                 clutterNameDictionary["baked_garbage"] = true;
@@ -199,6 +277,7 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["_heap"] = true;
                 clutterNameDictionary["_pile"] = true;
                 clutterNameDictionary["pile_"] = true;
+                clutterNameDictionary["_stuff"] = true;
                 clutterNameDictionary["_rubble"] = true;
                 clutterNameDictionary["rubble_"] = true;
                 clutterNameDictionary["scatter_"] = true;
@@ -217,6 +296,14 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["poletelen07"] = true;
                 clutterNameDictionary["poletelen08"] = true;
                 clutterNameDictionary["poletelen09"] = true;
+                clutterNameDictionary["vetky1"] = true;
+                clutterNameDictionary["vetky2"] = true;
+                clutterNameDictionary["vetky1_"] = true;
+                clutterNameDictionary["vetky2_"] = true;
+                clutterNameDictionary["vetky3_"] = true;
+                clutterNameDictionary["vetky4_"] = true;
+                clutterNameDictionary["vetky5_"] = true;
+                clutterNameDictionary["vetky6_"] = true;
             }
 
             if (declutterSpentCartridgesEnabledConfig.Value)
@@ -232,11 +319,13 @@ namespace TYR_DeClutterer
             if (declutterFakeFoodEnabledConfig.Value)
             {
                 clutterNameDictionary["canned"] = true;
+                clutterNameDictionary["canned_"] = true;
                 clutterNameDictionary["can_"] = true;
                 clutterNameDictionary["juice_"] = true;
                 clutterNameDictionary["carton_"] = true;
                 clutterNameDictionary["_creased"] = true;
                 clutterNameDictionary["bottle"] = true;
+                clutterNameDictionary["bottle_"] = true;
                 clutterNameDictionary["crackers_"] = true;
                 clutterNameDictionary["oat_flakes"] = true;
                 clutterNameDictionary["chocolate_"] = true;
@@ -244,6 +333,8 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["package_"] = true;
                 clutterNameDictionary["cigarette_"] = true;
                 clutterNameDictionary["medkit_"] = true;
+                clutterNameDictionary["_cup"] = true;
+                clutterNameDictionary["plasticcup_"] = true;
             }
 
             if (declutterDecalsEnabledConfig.Value)
@@ -256,6 +347,8 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["sand_decal"] = true;
                 clutterNameDictionary["decal_dirt"] = true;
                 clutterNameDictionary["decal_drip"] = true;
+                clutterNameDictionary["decal_"] = true;
+                clutterNameDictionary["decals_"] = true;
             }
 
             if (declutterPuddlesEnabledConfig.Value)
@@ -268,6 +361,8 @@ namespace TYR_DeClutterer
 
             if (declutterShardsEnabledConfig.Value)
             {
+                clutterNameDictionary["_glass"] = true;
+                clutterNameDictionary["brokenglass_"] = true;
                 clutterNameDictionary["glass_crush"] = true;
                 clutterNameDictionary["plite_crush"] = true;
                 clutterNameDictionary["lesa_crush"] = true;
@@ -275,6 +370,21 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["_shards"] = true;
             }
         }
+        private Dictionary<string, bool> dontDisableDictionary = new Dictionary<string, bool>
+        {
+            { "item_", true },
+            { "weapon_", true },
+            { "barter_", true },
+            { "mod_", true },
+            { "audio", true },
+            { "container", true },
+            { "trigger", true },
+            { "culling", true },
+            { "group", true },
+            { "manager", true },
+            { "scene", true },
+            { "player", true }
+        };
         private bool ShouldDisableObject(GameObject obj)
         {
             if (obj == null)
@@ -283,18 +393,31 @@ namespace TYR_DeClutterer
                 return false;
             }
 
-            GameObject childGameObject = null;
+            GameObject childGameMeshObject = null;
+            GameObject childGameColliderObject = null;
             string objName = obj.name.ToLower();
             bool isLODGroup = obj.GetComponent<LODGroup>() != null;
             bool isMesh = obj.GetComponent<MeshRenderer>() != null;
+            bool isTarkovContainer = obj.GetComponent<LootableContainer>() != null;
+            bool isTarkovContainerGroup = obj.GetComponent<LootableContainersGroup>() != null;
             bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
             bool isTarkovItem = obj.GetComponent<LootItem>() != null;
             bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
             bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
             bool hasBoxCollider = obj.GetComponent<BoxCollider>()?.enabled ?? false;
-            bool childHasMesh = obj.transform.GetComponent<MeshRenderer>() != null;
+            bool childHasMesh = false;
+            bool childHasCollider = false;
+            bool dontDisableName = dontDisableDictionary.Keys.Any(key => obj.name.ToLower().Contains(key.ToLower()));
 
-            if (isLODGroup)
+            if (isLODGroup &&
+                !dontDisableName &&
+                !isTarkovObservedItem &&
+                !isTarkovItem &&
+                !isTarkovWeaponMod &&
+                !hasRainCondensator &&
+                !hasBoxCollider &&
+                !isTarkovContainer &&
+                !isTarkovContainerGroup)
             {
                 //EFT.UI.ConsoleScreen.LogError("Found Lod Group " + obj.name);
                 bool foundClutterName = clutterNameDictionary.Keys.Any(key => obj.name.ToLower().Contains(key.ToLower()));
@@ -303,34 +426,35 @@ namespace TYR_DeClutterer
                     //EFT.UI.ConsoleScreen.LogError("Found Clutter Name" + obj.name);
                     foreach (Transform child in obj.transform)
                     {
-                        if (child.GetComponent<MeshRenderer>() != null)
+                            childGameMeshObject = child.gameObject;
+                            if (child.GetComponent<MeshRenderer>() != null && !childGameMeshObject.name.ToLower().Contains("shadow") && !childGameMeshObject.name.ToLower().StartsWith("col") && !childGameMeshObject.name.ToLower().EndsWith("der"))
+                            {
+                                childHasMesh = true;
+                                // Exit the loop since we've found what we need
+                                break;
+                            }
+                    }
+                    foreach (Transform child in obj.transform)
+                    {
+                        if ((child.GetComponent<MeshCollider>() != null || child.GetComponent<BoxCollider>() != null) && child.GetComponent<BallisticCollider>() == null)
                         {
-                            childGameObject = child.gameObject;
-                            childHasMesh = childGameObject != null && childGameObject.GetComponent<MeshRenderer>() != null;
-                            //EFT.UI.ConsoleScreen.LogError("Found child with same name as LOD Group and has mesh " + child.name);
+                            childGameColliderObject = child.gameObject;
+                            if (childGameColliderObject != null && childGameColliderObject.activeSelf)
+                            {
+                                childHasCollider = true;
+                                // Exit the loop since we've found what we need
+                                break;
+                            }
                         }
                     }
-                    if ((isMesh || childHasMesh) &&
-                        (!objName.Contains("audio") &&
-                        !objName.Contains("weapon") &&
-                        !objName.Contains("barter") &&
-                        !isTarkovObservedItem &&
-                        !isTarkovItem &&
-                        !isTarkovWeaponMod &&
-                        !hasRainCondensator &&
-                        !hasBoxCollider))
+                    if (isMesh || childHasMesh)
                     {
                         //EFT.UI.ConsoleScreen.LogError("Passed the bullshit brigade " + obj.name);
-                        float sizeOnY = GetMeshSizeOnY(obj, childGameObject);
+                        float sizeOnY = GetMeshSizeOnY(childGameMeshObject);
 
-                        // Find the "Collider" or "colider" child object
-                        Transform colliderTransform = FindChildTransform(obj, childGameObject, new string[] { "collider", "colider", "col" });
-
-                        // Check the child's active state or existence
-                        bool coliderDisabled = colliderTransform == null || (!colliderTransform.gameObject.activeSelf);
-
-                        if ((!coliderDisabled && sizeOnY >= 0 && sizeOnY <= 0.4 * declutterScaleOffsetConfig.Value) || (coliderDisabled && sizeOnY <= 1.2 * declutterScaleOffsetConfig.Value))
+                        if ((childHasCollider && sizeOnY > 0.0f && (sizeOnY <= 0.25f * declutterScaleOffsetConfig.Value)) || (!childHasCollider && (sizeOnY <= 1f * declutterScaleOffsetConfig.Value)))
                         {
+                            savedClutterObjects.Add(obj);
                             return true;
                         }
                     }
@@ -338,26 +462,9 @@ namespace TYR_DeClutterer
             }
             return false;
         }
-        private Transform FindChildTransform(GameObject obj, GameObject childGameObject, string[] namesToFind)
+        private float GetMeshSizeOnY(GameObject childGameObject)
         {
-            if (obj == null || childGameObject == null || namesToFind == null)
-            {
-                return null; // Handle null objects or namesToFind
-            }
-
-            foreach (string nameToFind in namesToFind)
-            {
-                Transform childTransform = obj.transform.Find(nameToFind) ?? childGameObject.transform.Find(nameToFind);
-                if (childTransform != null)
-                {
-                    return childTransform;
-                }
-            }
-            return null; // No matching child transform found
-        }
-        private float GetMeshSizeOnY(GameObject obj, GameObject childGameObject)
-        {
-            MeshRenderer meshRenderer = obj?.GetComponent<MeshRenderer>() ?? childGameObject?.GetComponent<MeshRenderer>();
+            MeshRenderer meshRenderer = childGameObject?.GetComponent<MeshRenderer>();
             if (meshRenderer != null && meshRenderer.enabled)
             {
                 Bounds bounds = meshRenderer.bounds;
