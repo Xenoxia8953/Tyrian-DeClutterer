@@ -14,7 +14,7 @@ using Framesaver;
 
 namespace TYR_DeClutterer
 {
-    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.8")]
+    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.9")]
     public class DeClutter : BaseUnityPlugin
     {
         private static GameWorld gameWorld;
@@ -32,6 +32,7 @@ namespace TYR_DeClutterer
         public static ConfigEntry<bool> declutterShardsEnabledConfig;
         public static ConfigEntry<float> declutterScaleOffsetConfig;
         public static ConfigEntry<bool> framesaverEnabledConfig;
+        public static ConfigEntry<bool> framesaverRagdollsEnabledConfig;
         public static ConfigEntry<bool> framesaverParticlesEnabledConfig;
         public static ConfigEntry<bool> framesaverShellChangesEnabledConfig;
         public static ConfigEntry<bool> framesaverSoftVegetationEnabledConfig;
@@ -74,15 +75,16 @@ namespace TYR_DeClutterer
             declutterPuddlesEnabledConfig = Config.Bind("B - De-Clutter Settings", "F - Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
             declutterShardsEnabledConfig = Config.Bind("B - De-Clutter Settings", "G - Glass & Tile Shards", true, "De-Clutters things labeled 'shards' or similar. The things you can step on that make noise.");
             framesaverEnabledConfig = Config.Bind("C - Framesaver Enabler", "A - Framesaver Enabled", false, "Enables Ari's Framesaver methods, with some of my additions.");
-            framesaverShellChangesEnabledConfig = Config.Bind("C - Framesaver Enabler", "F - Shell Spawn Changes", false, "Stops spent cartride shells from spawning.");
-            framesaverParticlesEnabledConfig = Config.Bind("C - Framesaver Enabler", "B - Particle Changes", false, "Enables particle changes.");
-            framesaverSoftVegetationEnabledConfig = Config.Bind("C - Framesaver Enabler", "C - Vegetation Changes", false, "Enables vegetation changes.");
-            framesaverReflectionsEnabledConfig = Config.Bind("C - Framesaver Enabler", "D - Reflection Changes", false, "Enables reflection changes.");
-            framesaverLightingShadowsEnabledConfig = Config.Bind("C - Framesaver Enabler", "E - Lighting & Shadow Changes", false, "Enables lighting & shadow changes.");
-            framesaverLightingShadowCascadesEnabledConfig = Config.Bind("C - Framesaver Enabler", "F - Shadow Cascade Changes", false, "Enables shadow cascade changes.");
-            framesaverWeatherUpdatesEnabledConfig = Config.Bind("C - Framesaver Enabler", "G - Cloud & Weather Changes", false, "Enables Cloud Shadow & Weather changes.");
-            framesaverTexturesEnabledConfig = Config.Bind("C - Framesaver Enabler", "H - Texture Changes", false, "Enables texture changes.");
-            framesaverLODEnabledConfig = Config.Bind("C - Framesaver Enabler", "I - LOD Changes", false, "Enables LOD changes.");
+            framesaverRagdollsEnabledConfig = Config.Bind("C - Framesaver Enabler", "B - Ragdoll Changes", false, "Disable player and bot ragdolls.");
+            framesaverShellChangesEnabledConfig = Config.Bind("C - Framesaver Enabler", "C - Shell Spawn Changes", false, "Stops spent cartride shells from spawning.");
+            framesaverParticlesEnabledConfig = Config.Bind("C - Framesaver Enabler", "D - Particle Changes", false, "Enables particle changes.");
+            framesaverSoftVegetationEnabledConfig = Config.Bind("C - Framesaver Enabler", "E - Vegetation Changes", false, "Enables vegetation changes.");
+            framesaverReflectionsEnabledConfig = Config.Bind("C - Framesaver Enabler", "F - Reflection Changes", false, "Enables reflection changes.");
+            framesaverLightingShadowsEnabledConfig = Config.Bind("C - Framesaver Enabler", "G - Lighting & Shadow Changes", false, "Enables lighting & shadow changes.");
+            framesaverLightingShadowCascadesEnabledConfig = Config.Bind("C - Framesaver Enabler", "H - Shadow Cascade Changes", false, "Enables shadow cascade changes.");
+            framesaverWeatherUpdatesEnabledConfig = Config.Bind("C - Framesaver Enabler", "I - Cloud & Weather Changes", false, "Enables Cloud Shadow & Weather changes.");
+            framesaverTexturesEnabledConfig = Config.Bind("C - Framesaver Enabler", "J - Texture Changes", false, "Enables texture changes.");
+            framesaverLODEnabledConfig = Config.Bind("C - Framesaver Enabler", "K - LOD Changes", false, "Enables LOD changes.");
             framesaverParticleBudgetDividerConfig = Config.Bind<int>("D - Framesaver Settings", "A - Particle Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Particle Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
             framesaverPixelLightDividerConfig = Config.Bind<int>("D - Framesaver Settings", "B - Lighting Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Lighting Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
             framesaverShadowDividerConfig = Config.Bind<int>("D - Framesaver Settings", "C - Shadow Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Shadow Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
@@ -116,7 +118,10 @@ namespace TYR_DeClutterer
             {
                 if (applyFramesaver)
                 {
-                    GClass570.GClass572.Enabled = false;
+                    if (framesaverRagdollsEnabledConfig.Value)
+                    {
+                        GClass570.GClass572.Enabled = false;
+                    }
                     if (framesaverParticlesEnabledConfig.Value)
                     {
                         QualitySettings.softParticles = false;
@@ -157,7 +162,6 @@ namespace TYR_DeClutterer
                         new DontSpawnShellsFiringPatch().Enable();
                         new DontSpawnShellsJamPatch().Enable();
                         new DontSpawnShellsAtAllReallyPatch().Enable();
-                        new WeaponSoundPlayerDisablePatch().Enable();
                     }
                     if (framesaverWeatherUpdatesEnabledConfig.Value)
                     {
@@ -185,7 +189,6 @@ namespace TYR_DeClutterer
                     new AmbientLightOptimizeRenderingPatch().Disable();
                     new AmbientLightDisableUpdatesPatch().Disable();
                     new AmbientLightDisableLateUpdatesPatch().Disable();
-                    new WeaponSoundPlayerDisablePatch().Disable();
                     new CloudsControllerDelayUpdatesPatch().Disable();
                     new WeatherEventControllerDelayUpdatesPatch().Disable();
                 }
@@ -245,7 +248,10 @@ namespace TYR_DeClutterer
         {
             if (applyFramesaver)
             {
-                GClass570.GClass572.Enabled = false;
+                if (framesaverRagdollsEnabledConfig.Value)
+                {
+                    GClass570.GClass572.Enabled = false;
+                }
                 if (framesaverParticlesEnabledConfig.Value)
                 {
                     QualitySettings.softParticles = false;
@@ -286,7 +292,6 @@ namespace TYR_DeClutterer
                     new DontSpawnShellsFiringPatch().Enable();
                     new DontSpawnShellsJamPatch().Enable();
                     new DontSpawnShellsAtAllReallyPatch().Enable();
-                    new WeaponSoundPlayerDisablePatch().Enable();
                 }
                 if (framesaverWeatherUpdatesEnabledConfig.Value)
                 {
@@ -314,7 +319,6 @@ namespace TYR_DeClutterer
                 new AmbientLightOptimizeRenderingPatch().Disable();
                 new AmbientLightDisableUpdatesPatch().Disable();
                 new AmbientLightDisableLateUpdatesPatch().Disable();
-                new WeaponSoundPlayerDisablePatch().Disable();
                 new CloudsControllerDelayUpdatesPatch().Disable();
                 new WeatherEventControllerDelayUpdatesPatch().Disable();
             }

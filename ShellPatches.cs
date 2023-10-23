@@ -51,18 +51,4 @@ namespace Framesaver
             return false;
         }
     }
-
-    class WeaponSoundPlayerDisablePatch : ModulePatch
-    {
-        protected override MethodBase GetTargetMethod()
-        {
-            return typeof(WeaponSoundPlayer)?.GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-        }
-
-        [PatchPrefix]
-        public static bool Prefix()
-        {
-            return false;
-        }
-    }
 }
