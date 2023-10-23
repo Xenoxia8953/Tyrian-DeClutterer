@@ -120,3 +120,5 @@ C:\Users\thebo\Desktop\TarkovProjects\GithubStuff\Client Mod Stuff\DeClutterer\o
 C:\Users\thebo\Desktop\TarkovProjects\GithubStuff\Client Mod Stuff\DeClutterer\obj\Debug\net472\TYR_DeClutterer.dll
 C:\Users\thebo\Desktop\TarkovProjects\GithubStuff\Client Mod Stuff\DeClutterer\obj\Debug\net472\TYR_DeClutterer.pdb
 C:\Users\thebo\Desktop\TarkovProjects\GithubStuff\Client Mod Stuff\DeClutterer\obj\Debug\net472\TYR_DeClutterer.csproj.AssemblyReference.cache
+C:\Users\thebo\Desktop\TarkovProjects\GithubStuff\Client Mod Stuff\DeClutterer\bin\Debug\net472\BepInEx.Harmony.dll
+C:\Users\thebo\Desktop\TarkovProjects\GithubStuff\Client Mod Stuff\DeClutterer\bin\Debug\net472\BepInEx.Harmony.xml

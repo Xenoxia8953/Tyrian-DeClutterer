@@ -12,6 +12,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>dependencies\0Harmony.dll</HintPath>
+    </Reference>
     <Reference Include="Aki.Reflection">
       <HintPath>..\..\..\Shared\Aki.Reflection.dll</HintPath>
     </Reference>
@@ -20,6 +23,9 @@
     </Reference>
     <Reference Include="BepInEx">
       <HintPath>..\..\..\Shared\BepInEx.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Harmony">
+      <HintPath>dependencies\BepInEx.Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Comfort">
       <HintPath>..\..\..\Shared\Comfort.dll</HintPath>

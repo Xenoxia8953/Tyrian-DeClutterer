@@ -5,17 +5,16 @@ using EFT;
 using EFT.AssetsManager;
 using EFT.Ballistics;
 using EFT.Interactive;
-using Koenigz.PerfectCulling.EFT;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Framesaver;
 
 namespace TYR_DeClutterer
 {
-    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.7")]
+    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.8")]
     public class DeClutter : BaseUnityPlugin
     {
         private static GameWorld gameWorld;
@@ -32,7 +31,34 @@ namespace TYR_DeClutterer
         public static ConfigEntry<bool> declutterPuddlesEnabledConfig;
         public static ConfigEntry<bool> declutterShardsEnabledConfig;
         public static ConfigEntry<float> declutterScaleOffsetConfig;
+        public static ConfigEntry<bool> framesaverEnabledConfig;
+        public static ConfigEntry<bool> framesaverParticlesEnabledConfig;
+        public static ConfigEntry<bool> framesaverShellChangesEnabledConfig;
+        public static ConfigEntry<bool> framesaverSoftVegetationEnabledConfig;
+        public static ConfigEntry<bool> framesaverReflectionsEnabledConfig;
+        public static ConfigEntry<bool> framesaverLightingShadowsEnabledConfig;
+        public static ConfigEntry<bool> framesaverLightingShadowCascadesEnabledConfig;
+        public static ConfigEntry<bool> framesaverWeatherUpdatesEnabledConfig;
+        public static ConfigEntry<bool> framesaverTexturesEnabledConfig;
+        public static ConfigEntry<bool> framesaverLODEnabledConfig;
+        public static ConfigEntry<int> framesaverParticleBudgetDividerConfig;
+        public static ConfigEntry<int> framesaverPixelLightDividerConfig;
+        public static ConfigEntry<int> framesaverShadowDividerConfig;
+        public static ConfigEntry<int> framesaverTextureSizeConfig;
+        public static ConfigEntry<float> framesaverLODBiasConfig;
         public static bool applyDeclutter = false;
+        public static bool applyFramesaver = false;
+        public static bool defaultsoftParticles = QualitySettings.softParticles;
+        public static int defaultparticleRaycastBudget = QualitySettings.particleRaycastBudget;
+        public static bool defaultsoftVegetation = QualitySettings.softVegetation;
+        public static bool defaultrealtimeReflectionProbes = QualitySettings.realtimeReflectionProbes;
+        public static int defaultpixelLightCount = QualitySettings.pixelLightCount;
+        public static ShadowQuality defaultShadows = QualitySettings.shadows;
+        public static int defaultshadowCascades = QualitySettings.shadowCascades;
+        public static float defaultshadowCascade2Split = QualitySettings.shadowCascade2Split;
+        public static Vector3 defaultshadowCascade4Split = QualitySettings.shadowCascade4Split;
+        public static int defaultmasterTextureLimit = QualitySettings.masterTextureLimit;
+        public static float defaultlodBias = QualitySettings.lodBias;
 
         private void Awake()
         {
@@ -47,10 +73,123 @@ namespace TYR_DeClutterer
             declutterDecalsEnabledConfig = Config.Bind("B - De-Clutter Settings", "E - Decal De-Clutter", true, "De-Clutters decals (Blood, grafiti, etc.)");
             declutterPuddlesEnabledConfig = Config.Bind("B - De-Clutter Settings", "F - Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
             declutterShardsEnabledConfig = Config.Bind("B - De-Clutter Settings", "G - Glass & Tile Shards", true, "De-Clutters things labeled 'shards' or similar. The things you can step on that make noise.");
+            framesaverEnabledConfig = Config.Bind("C - Framesaver Enabler", "A - Framesaver Enabled", false, "Enables Ari's Framesaver methods, with some of my additions.");
+            framesaverShellChangesEnabledConfig = Config.Bind("C - Framesaver Enabler", "F - Shell Spawn Changes", false, "Stops spent cartride shells from spawning.");
+            framesaverParticlesEnabledConfig = Config.Bind("C - Framesaver Enabler", "B - Particle Changes", false, "Enables particle changes.");
+            framesaverSoftVegetationEnabledConfig = Config.Bind("C - Framesaver Enabler", "C - Vegetation Changes", false, "Enables vegetation changes.");
+            framesaverReflectionsEnabledConfig = Config.Bind("C - Framesaver Enabler", "D - Reflection Changes", false, "Enables reflection changes.");
+            framesaverLightingShadowsEnabledConfig = Config.Bind("C - Framesaver Enabler", "E - Lighting & Shadow Changes", false, "Enables lighting & shadow changes.");
+            framesaverLightingShadowCascadesEnabledConfig = Config.Bind("C - Framesaver Enabler", "F - Shadow Cascade Changes", false, "Enables shadow cascade changes.");
+            framesaverWeatherUpdatesEnabledConfig = Config.Bind("C - Framesaver Enabler", "G - Cloud & Weather Changes", false, "Enables Cloud Shadow & Weather changes.");
+            framesaverTexturesEnabledConfig = Config.Bind("C - Framesaver Enabler", "H - Texture Changes", false, "Enables texture changes.");
+            framesaverLODEnabledConfig = Config.Bind("C - Framesaver Enabler", "I - LOD Changes", false, "Enables LOD changes.");
+            framesaverParticleBudgetDividerConfig = Config.Bind<int>("D - Framesaver Settings", "A - Particle Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Particle Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
+            framesaverPixelLightDividerConfig = Config.Bind<int>("D - Framesaver Settings", "B - Lighting Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Lighting Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
+            framesaverShadowDividerConfig = Config.Bind<int>("D - Framesaver Settings", "C - Shadow Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Shadow Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
+            framesaverTextureSizeConfig = Config.Bind<int>("D - Framesaver Settings", "D - Texture Size Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Texture Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
+            framesaverLODBiasConfig = Config.Bind<float>("D - Framesaver Settings", "E - LOD Bias Reducer", 0.0f, new BepInEx.Configuration.ConfigDescription("0 is default, Higher number = Lower Model Quality.", new BepInEx.Configuration.AcceptableValueRange<float>(0.0f, 1.0f)));
+            applyFramesaver = framesaverEnabledConfig.Value;
             InitializeClutterNames();
 
             // Register the SettingChanged event
             declutterEnabledConfig.SettingChanged += OnApplyDeclutterSettingChanged;
+            framesaverEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverShellChangesEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverParticlesEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverSoftVegetationEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverReflectionsEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverLightingShadowsEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverWeatherUpdatesEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverTexturesEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverLODEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverParticleBudgetDividerConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverPixelLightDividerConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverShadowDividerConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverTextureSizeConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverLODBiasConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+        }
+        // Framesaver information and patches brought to you by Ari.
+        private void OnApplyFramesaverSettingChanged(object sender, EventArgs e)
+        {
+            applyFramesaver = framesaverEnabledConfig.Value;
+            if (deCluttered)
+            {
+                if (applyFramesaver)
+                {
+                    GClass570.GClass572.Enabled = false;
+                    if (framesaverParticlesEnabledConfig.Value)
+                    {
+                        QualitySettings.softParticles = false;
+                        QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget / framesaverParticleBudgetDividerConfig.Value;
+                    }
+                    if (framesaverSoftVegetationEnabledConfig.Value)
+                    {
+                        QualitySettings.softVegetation = false;
+                    }
+                    if (framesaverReflectionsEnabledConfig.Value)
+                    {
+                        QualitySettings.realtimeReflectionProbes = false;
+                    }
+                    if (framesaverLightingShadowsEnabledConfig.Value)
+                    {
+                        new AmbientLightOptimizeRenderingPatch().Enable();
+                        new AmbientLightDisableUpdatesPatch().Enable();
+                        new AmbientLightDisableLateUpdatesPatch().Enable();
+                    }
+                    if (framesaverLightingShadowCascadesEnabledConfig.Value)
+                    {
+                        QualitySettings.pixelLightCount = defaultpixelLightCount / framesaverPixelLightDividerConfig.Value;
+                        QualitySettings.shadows = ShadowQuality.HardOnly;
+                        QualitySettings.shadowCascades = defaultshadowCascades / framesaverShadowDividerConfig.Value;
+                        QualitySettings.shadowCascade2Split = defaultshadowCascade2Split * framesaverShadowDividerConfig.Value;
+                        QualitySettings.shadowCascade4Split = defaultshadowCascade4Split * framesaverShadowDividerConfig.Value;
+                    }
+                    if (framesaverTexturesEnabledConfig.Value)
+                    {
+                        QualitySettings.masterTextureLimit = defaultmasterTextureLimit * framesaverTextureSizeConfig.Value;
+                    }
+                    if (framesaverLODEnabledConfig.Value)
+                    {
+                        QualitySettings.lodBias = defaultlodBias - framesaverLODBiasConfig.Value;
+                    }
+                    if (framesaverShellChangesEnabledConfig.Value)
+                    {
+                        new DontSpawnShellsFiringPatch().Enable();
+                        new DontSpawnShellsJamPatch().Enable();
+                        new DontSpawnShellsAtAllReallyPatch().Enable();
+                        new WeaponSoundPlayerDisablePatch().Enable();
+                    }
+                    if (framesaverWeatherUpdatesEnabledConfig.Value)
+                    {
+                        new CloudsControllerDelayUpdatesPatch().Enable();
+                        new WeatherEventControllerDelayUpdatesPatch().Enable();
+                    }
+                }
+                else
+                {
+                    QualitySettings.softParticles = defaultsoftParticles;
+                    QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget;
+                    QualitySettings.softVegetation = defaultsoftVegetation;
+                    QualitySettings.realtimeReflectionProbes = defaultrealtimeReflectionProbes;
+                    QualitySettings.pixelLightCount = defaultpixelLightCount;
+                    QualitySettings.shadows = defaultShadows;
+                    QualitySettings.shadowCascades = defaultshadowCascades;
+                    QualitySettings.shadowCascade2Split = defaultshadowCascade2Split;
+                    QualitySettings.shadowCascade4Split = defaultshadowCascade4Split;
+                    QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
+                    QualitySettings.lodBias = defaultlodBias;
+                    GClass570.GClass572.Enabled = true;
+                    new DontSpawnShellsFiringPatch().Disable();
+                    new DontSpawnShellsJamPatch().Disable();
+                    new DontSpawnShellsAtAllReallyPatch().Disable();
+                    new AmbientLightOptimizeRenderingPatch().Disable();
+                    new AmbientLightDisableUpdatesPatch().Disable();
+                    new AmbientLightDisableLateUpdatesPatch().Disable();
+                    new WeaponSoundPlayerDisablePatch().Disable();
+                    new CloudsControllerDelayUpdatesPatch().Disable();
+                    new WeatherEventControllerDelayUpdatesPatch().Disable();
+                }
+            }
         }
         private void OnApplyDeclutterSettingChanged(object sender, EventArgs e)
         {
@@ -82,9 +221,11 @@ namespace TYR_DeClutterer
             if (gameWorld == null || gameWorld.MainPlayer == null || IsInHideout())
                 return;
 
-            DeClutterScene();
             deCluttered = true;
+            DeClutterScene();
+            DeClutterVisuals();
         }
+
         private bool IsInHideout()
         {
             // Check if "bunker_2" is one of the active scene names
@@ -99,6 +240,84 @@ namespace TYR_DeClutterer
             }
             //EFT.UI.ConsoleScreen.LogError("bunker_2 not loaded, de-cluttering.");
             return false;
+        }
+        private void DeClutterVisuals()
+        {
+            if (applyFramesaver)
+            {
+                GClass570.GClass572.Enabled = false;
+                if (framesaverParticlesEnabledConfig.Value)
+                {
+                    QualitySettings.softParticles = false;
+                    QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget / framesaverParticleBudgetDividerConfig.Value;
+                }
+                if (framesaverSoftVegetationEnabledConfig.Value)
+                {
+                    QualitySettings.softVegetation = false;
+                }
+                if (framesaverReflectionsEnabledConfig.Value)
+                {
+                    QualitySettings.realtimeReflectionProbes = false;
+                }
+                if (framesaverLightingShadowsEnabledConfig.Value)
+                {
+                    new AmbientLightOptimizeRenderingPatch().Enable();
+                    new AmbientLightDisableUpdatesPatch().Enable();
+                    new AmbientLightDisableLateUpdatesPatch().Enable();
+                }
+                if (framesaverLightingShadowCascadesEnabledConfig.Value)
+                {
+                    QualitySettings.pixelLightCount = defaultpixelLightCount / framesaverPixelLightDividerConfig.Value;
+                    QualitySettings.shadows = ShadowQuality.HardOnly;
+                    QualitySettings.shadowCascades = defaultshadowCascades / framesaverShadowDividerConfig.Value;
+                    QualitySettings.shadowCascade2Split = defaultshadowCascade2Split * framesaverShadowDividerConfig.Value;
+                    QualitySettings.shadowCascade4Split = defaultshadowCascade4Split * framesaverShadowDividerConfig.Value;
+                }
+                if (framesaverTexturesEnabledConfig.Value)
+                {
+                    QualitySettings.masterTextureLimit = defaultmasterTextureLimit * framesaverTextureSizeConfig.Value;
+                }
+                if (framesaverLODEnabledConfig.Value)
+                {
+                    QualitySettings.lodBias = defaultlodBias - framesaverLODBiasConfig.Value;
+                }
+                if (framesaverShellChangesEnabledConfig.Value)
+                {
+                    new DontSpawnShellsFiringPatch().Enable();
+                    new DontSpawnShellsJamPatch().Enable();
+                    new DontSpawnShellsAtAllReallyPatch().Enable();
+                    new WeaponSoundPlayerDisablePatch().Enable();
+                }
+                if (framesaverWeatherUpdatesEnabledConfig.Value)
+                {
+                    new CloudsControllerDelayUpdatesPatch().Enable();
+                    new WeatherEventControllerDelayUpdatesPatch().Enable();
+                }
+            }
+            else
+            {
+                QualitySettings.softParticles = defaultsoftParticles;
+                QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget;
+                QualitySettings.softVegetation = defaultsoftVegetation;
+                QualitySettings.realtimeReflectionProbes = defaultrealtimeReflectionProbes;
+                QualitySettings.pixelLightCount = defaultpixelLightCount;
+                QualitySettings.shadows = defaultShadows;
+                QualitySettings.shadowCascades = defaultshadowCascades;
+                QualitySettings.shadowCascade2Split = defaultshadowCascade2Split;
+                QualitySettings.shadowCascade4Split = defaultshadowCascade4Split;
+                QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
+                QualitySettings.lodBias = defaultlodBias;
+                GClass570.GClass572.Enabled = true;
+                new DontSpawnShellsFiringPatch().Disable();
+                new DontSpawnShellsJamPatch().Disable();
+                new DontSpawnShellsAtAllReallyPatch().Disable();
+                new AmbientLightOptimizeRenderingPatch().Disable();
+                new AmbientLightDisableUpdatesPatch().Disable();
+                new AmbientLightDisableLateUpdatesPatch().Disable();
+                new WeaponSoundPlayerDisablePatch().Disable();
+                new CloudsControllerDelayUpdatesPatch().Disable();
+                new WeatherEventControllerDelayUpdatesPatch().Disable();
+            }
         }
         private void DeClutterScene()
         {
