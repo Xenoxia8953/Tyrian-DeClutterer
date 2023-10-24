@@ -7,7 +7,7 @@ namespace Framesaver
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(AmbientLight)?.GetMethod("method_8", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return typeof(AmbientLight).GetMethod("method_8", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         }
 
         [PatchPrefix]
@@ -20,7 +20,7 @@ namespace Framesaver
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(AmbientLight)?.GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return typeof(AmbientLight).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         }
 
         [PatchPrefix]
@@ -33,7 +33,7 @@ namespace Framesaver
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(AmbientLight)?.GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return typeof(AmbientLight).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         }
 
         [PatchPrefix]
@@ -46,7 +46,7 @@ namespace Framesaver
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(CloudsController)?.GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return typeof(CloudsController).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         }
         [PatchPrefix]
         public static bool Prefix()
@@ -58,7 +58,7 @@ namespace Framesaver
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(WeatherEventController)?.GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return typeof(WeatherEventController).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         }
         [PatchPrefix]
         public static bool Prefix()

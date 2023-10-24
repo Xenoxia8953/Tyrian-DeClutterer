@@ -11,7 +11,7 @@ namespace Framesaver
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(GClass1555)?.GetMethod("method_9", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return typeof(GClass1555).GetMethod("method_9", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         }
 
         [PatchPrefix]
@@ -27,7 +27,7 @@ namespace Framesaver
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(GClass1555)?.GetMethod("SpawnShellAfterJam", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return typeof(GClass1555).GetMethod("SpawnShellAfterJam", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         }
 
         [PatchPrefix]
@@ -41,7 +41,7 @@ namespace Framesaver
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(GClass1555)?.GetMethod("method_4", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            return typeof(GClass1555).GetMethod("method_4", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         }
 
         [PatchPrefix]

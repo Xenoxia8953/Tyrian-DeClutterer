@@ -14,7 +14,7 @@ using Framesaver;
 
 namespace TYR_DeClutterer
 {
-    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.0.9")]
+    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.1.0")]
     public class DeClutter : BaseUnityPlugin
     {
         private static GameWorld gameWorld;
@@ -32,7 +32,7 @@ namespace TYR_DeClutterer
         public static ConfigEntry<bool> declutterShardsEnabledConfig;
         public static ConfigEntry<float> declutterScaleOffsetConfig;
         public static ConfigEntry<bool> framesaverEnabledConfig;
-        public static ConfigEntry<bool> framesaverRagdollsEnabledConfig;
+        public static ConfigEntry<bool> framesaverPhysicsEnabledConfig;
         public static ConfigEntry<bool> framesaverParticlesEnabledConfig;
         public static ConfigEntry<bool> framesaverShellChangesEnabledConfig;
         public static ConfigEntry<bool> framesaverSoftVegetationEnabledConfig;
@@ -75,7 +75,7 @@ namespace TYR_DeClutterer
             declutterPuddlesEnabledConfig = Config.Bind("B - De-Clutter Settings", "F - Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
             declutterShardsEnabledConfig = Config.Bind("B - De-Clutter Settings", "G - Glass & Tile Shards", true, "De-Clutters things labeled 'shards' or similar. The things you can step on that make noise.");
             framesaverEnabledConfig = Config.Bind("C - Framesaver Enabler", "A - Framesaver Enabled", false, "Enables Ari's Framesaver methods, with some of my additions.");
-            framesaverRagdollsEnabledConfig = Config.Bind("C - Framesaver Enabler", "B - Ragdoll Changes", false, "Disable player and bot ragdolls.");
+            framesaverPhysicsEnabledConfig = Config.Bind("C - Framesaver Enabler", "B - Physics Changes", false, "Experimental physics optimization, uses default Unity physics on FixedUpdate rather than BSG's physics implementations.");
             framesaverShellChangesEnabledConfig = Config.Bind("C - Framesaver Enabler", "C - Shell Spawn Changes", false, "Stops spent cartride shells from spawning.");
             framesaverParticlesEnabledConfig = Config.Bind("C - Framesaver Enabler", "D - Particle Changes", false, "Enables particle changes.");
             framesaverSoftVegetationEnabledConfig = Config.Bind("C - Framesaver Enabler", "E - Vegetation Changes", false, "Enables vegetation changes.");
@@ -96,6 +96,7 @@ namespace TYR_DeClutterer
             // Register the SettingChanged event
             declutterEnabledConfig.SettingChanged += OnApplyDeclutterSettingChanged;
             framesaverEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverPhysicsEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
             framesaverShellChangesEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
             framesaverParticlesEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
             framesaverSoftVegetationEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
@@ -118,9 +119,10 @@ namespace TYR_DeClutterer
             {
                 if (applyFramesaver)
                 {
-                    if (framesaverRagdollsEnabledConfig.Value)
+                    if (framesaverPhysicsEnabledConfig.Value)
                     {
-                        GClass570.GClass572.Enabled = false;
+                        new PhysicsUpdatePatch().Enable();
+                        new PhysicsFixedUpdatePatch().Enable();
                     }
                     if (framesaverParticlesEnabledConfig.Value)
                     {
@@ -182,7 +184,6 @@ namespace TYR_DeClutterer
                     QualitySettings.shadowCascade4Split = defaultshadowCascade4Split;
                     QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
                     QualitySettings.lodBias = defaultlodBias;
-                    GClass570.GClass572.Enabled = true;
                     new DontSpawnShellsFiringPatch().Disable();
                     new DontSpawnShellsJamPatch().Disable();
                     new DontSpawnShellsAtAllReallyPatch().Disable();
@@ -191,6 +192,8 @@ namespace TYR_DeClutterer
                     new AmbientLightDisableLateUpdatesPatch().Disable();
                     new CloudsControllerDelayUpdatesPatch().Disable();
                     new WeatherEventControllerDelayUpdatesPatch().Disable();
+                    new PhysicsUpdatePatch().Disable();
+                    new PhysicsFixedUpdatePatch().Disable();
                 }
             }
         }
@@ -228,7 +231,6 @@ namespace TYR_DeClutterer
             DeClutterScene();
             DeClutterVisuals();
         }
-
         private bool IsInHideout()
         {
             // Check if "bunker_2" is one of the active scene names
@@ -248,9 +250,10 @@ namespace TYR_DeClutterer
         {
             if (applyFramesaver)
             {
-                if (framesaverRagdollsEnabledConfig.Value)
+                if (framesaverPhysicsEnabledConfig.Value)
                 {
-                    GClass570.GClass572.Enabled = false;
+                    new PhysicsUpdatePatch().Enable();
+                    new PhysicsFixedUpdatePatch().Enable();
                 }
                 if (framesaverParticlesEnabledConfig.Value)
                 {
@@ -312,7 +315,6 @@ namespace TYR_DeClutterer
                 QualitySettings.shadowCascade4Split = defaultshadowCascade4Split;
                 QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
                 QualitySettings.lodBias = defaultlodBias;
-                GClass570.GClass572.Enabled = true;
                 new DontSpawnShellsFiringPatch().Disable();
                 new DontSpawnShellsJamPatch().Disable();
                 new DontSpawnShellsAtAllReallyPatch().Disable();
@@ -321,6 +323,8 @@ namespace TYR_DeClutterer
                 new AmbientLightDisableLateUpdatesPatch().Disable();
                 new CloudsControllerDelayUpdatesPatch().Disable();
                 new WeatherEventControllerDelayUpdatesPatch().Disable();
+                new PhysicsUpdatePatch().Disable();
+                new PhysicsFixedUpdatePatch().Disable();
             }
         }
         private void DeClutterScene()
