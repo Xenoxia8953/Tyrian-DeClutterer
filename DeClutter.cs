@@ -14,7 +14,7 @@ using Framesaver;
 
 namespace TYR_DeClutterer
 {
-    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.1.0")]
+    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.1.1")]
     public class DeClutter : BaseUnityPlugin
     {
         private static GameWorld gameWorld;
@@ -48,7 +48,6 @@ namespace TYR_DeClutterer
         public static ConfigEntry<int> framesaverTextureSizeConfig;
         public static ConfigEntry<float> framesaverLODBiasConfig;
         public static bool applyDeclutter = false;
-        public static bool applyFramesaver = false;
         public static bool defaultsoftParticles = QualitySettings.softParticles;
         public static int defaultparticleRaycastBudget = QualitySettings.particleRaycastBudget;
         public static bool defaultsoftVegetation = QualitySettings.softVegetation;
@@ -56,8 +55,6 @@ namespace TYR_DeClutterer
         public static int defaultpixelLightCount = QualitySettings.pixelLightCount;
         public static ShadowQuality defaultShadows = QualitySettings.shadows;
         public static int defaultshadowCascades = QualitySettings.shadowCascades;
-        public static float defaultshadowCascade2Split = QualitySettings.shadowCascade2Split;
-        public static Vector3 defaultshadowCascade4Split = QualitySettings.shadowCascade4Split;
         public static int defaultmasterTextureLimit = QualitySettings.masterTextureLimit;
         public static float defaultlodBias = QualitySettings.lodBias;
 
@@ -88,9 +85,8 @@ namespace TYR_DeClutterer
             framesaverParticleBudgetDividerConfig = Config.Bind<int>("D - Framesaver Settings", "A - Particle Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Particle Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
             framesaverPixelLightDividerConfig = Config.Bind<int>("D - Framesaver Settings", "B - Lighting Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Lighting Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
             framesaverShadowDividerConfig = Config.Bind<int>("D - Framesaver Settings", "C - Shadow Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Shadow Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
-            framesaverTextureSizeConfig = Config.Bind<int>("D - Framesaver Settings", "D - Texture Size Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Texture Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
-            framesaverLODBiasConfig = Config.Bind<float>("D - Framesaver Settings", "E - LOD Bias Reducer", 0.0f, new BepInEx.Configuration.ConfigDescription("0 is default, Higher number = Lower Model Quality.", new BepInEx.Configuration.AcceptableValueRange<float>(0.0f, 1.0f)));
-            applyFramesaver = framesaverEnabledConfig.Value;
+            framesaverTextureSizeConfig = Config.Bind<int>("D - Framesaver Settings", "D - Texture Size Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Texture Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 6)));
+            framesaverLODBiasConfig = Config.Bind<float>("D - Framesaver Settings", "E - LOD Bias Reducer", 1.0f, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Model Quality.", new BepInEx.Configuration.AcceptableValueRange<float>(1.0f, 2.0f)));
             InitializeClutterNames();
 
             // Register the SettingChanged event
@@ -110,32 +106,64 @@ namespace TYR_DeClutterer
             framesaverShadowDividerConfig.SettingChanged += OnApplyFramesaverSettingChanged;
             framesaverTextureSizeConfig.SettingChanged += OnApplyFramesaverSettingChanged;
             framesaverLODBiasConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            defaultsoftParticles = QualitySettings.softParticles;
+            defaultparticleRaycastBudget = QualitySettings.particleRaycastBudget;
+            defaultsoftVegetation = QualitySettings.softVegetation;
+            defaultrealtimeReflectionProbes = QualitySettings.realtimeReflectionProbes;
+            defaultpixelLightCount = QualitySettings.pixelLightCount;
+            defaultShadows = QualitySettings.shadows;
+            defaultshadowCascades = QualitySettings.shadowCascades;
+            defaultmasterTextureLimit = QualitySettings.masterTextureLimit;
+            defaultlodBias = QualitySettings.lodBias;
         }
+
         // Framesaver information and patches brought to you by Ari.
         private void OnApplyFramesaverSettingChanged(object sender, EventArgs e)
         {
-            applyFramesaver = framesaverEnabledConfig.Value;
             if (deCluttered)
             {
-                if (applyFramesaver)
+                if (framesaverEnabledConfig.Value)
                 {
                     if (framesaverPhysicsEnabledConfig.Value)
                     {
+                        new RagdollPhysicsLateUpdatePatch().Enable();
                         new PhysicsUpdatePatch().Enable();
                         new PhysicsFixedUpdatePatch().Enable();
+                    }
+                    else
+                    {
+                        new RagdollPhysicsLateUpdatePatch().Disable();
+                        new PhysicsUpdatePatch().Disable();
+                        new PhysicsFixedUpdatePatch().Disable();
                     }
                     if (framesaverParticlesEnabledConfig.Value)
                     {
                         QualitySettings.softParticles = false;
-                        QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget / framesaverParticleBudgetDividerConfig.Value;
+                        if (framesaverParticleBudgetDividerConfig.Value > 1)
+                        {
+                            QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget / framesaverParticleBudgetDividerConfig.Value;
+                        }
+                    }
+                    else
+                    {
+                        QualitySettings.softParticles = defaultsoftParticles;
+                        QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget;
                     }
                     if (framesaverSoftVegetationEnabledConfig.Value)
                     {
                         QualitySettings.softVegetation = false;
                     }
+                    else
+                    {
+                        QualitySettings.softVegetation = defaultsoftVegetation;
+                    }
                     if (framesaverReflectionsEnabledConfig.Value)
                     {
                         QualitySettings.realtimeReflectionProbes = false;
+                    }
+                    else
+                    {
+                        QualitySettings.realtimeReflectionProbes = defaultrealtimeReflectionProbes;
                     }
                     if (framesaverLightingShadowsEnabledConfig.Value)
                     {
@@ -143,21 +171,48 @@ namespace TYR_DeClutterer
                         new AmbientLightDisableUpdatesPatch().Enable();
                         new AmbientLightDisableLateUpdatesPatch().Enable();
                     }
+                    else
+                    {
+                        new AmbientLightOptimizeRenderingPatch().Disable();
+                        new AmbientLightDisableUpdatesPatch().Disable();
+                        new AmbientLightDisableLateUpdatesPatch().Disable();
+                    }
                     if (framesaverLightingShadowCascadesEnabledConfig.Value)
                     {
-                        QualitySettings.pixelLightCount = defaultpixelLightCount / framesaverPixelLightDividerConfig.Value;
                         QualitySettings.shadows = ShadowQuality.HardOnly;
-                        QualitySettings.shadowCascades = defaultshadowCascades / framesaverShadowDividerConfig.Value;
-                        QualitySettings.shadowCascade2Split = defaultshadowCascade2Split * framesaverShadowDividerConfig.Value;
-                        QualitySettings.shadowCascade4Split = defaultshadowCascade4Split * framesaverShadowDividerConfig.Value;
+                        if (framesaverShadowDividerConfig.Value > 1)
+                        {
+                            QualitySettings.pixelLightCount = 4 / framesaverPixelLightDividerConfig.Value;
+                            QualitySettings.shadowCascades = 4 / framesaverShadowDividerConfig.Value;
+                        }
+                    }
+                    else
+                    {
+                        QualitySettings.pixelLightCount = defaultpixelLightCount;
+                        QualitySettings.shadows = defaultShadows;
+                        QualitySettings.shadowCascades = defaultshadowCascades;
                     }
                     if (framesaverTexturesEnabledConfig.Value)
                     {
-                        QualitySettings.masterTextureLimit = defaultmasterTextureLimit * framesaverTextureSizeConfig.Value;
+                        if (framesaverTextureSizeConfig.Value > 1)
+                        {
+                            QualitySettings.masterTextureLimit = 0 + framesaverTextureSizeConfig.Value;
+                        }
+                    }
+                    else
+                    {
+                        QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
                     }
                     if (framesaverLODEnabledConfig.Value)
                     {
-                        QualitySettings.lodBias = defaultlodBias - framesaverLODBiasConfig.Value;
+                        if (framesaverLODBiasConfig.Value > 1.0f)
+                        {
+                            QualitySettings.lodBias = 2.0f / framesaverLODBiasConfig.Value;
+                        }
+                    }
+                    else
+                    {
+                        QualitySettings.lodBias = defaultlodBias;
                     }
                     if (framesaverShellChangesEnabledConfig.Value)
                     {
@@ -165,10 +220,25 @@ namespace TYR_DeClutterer
                         new DontSpawnShellsJamPatch().Enable();
                         new DontSpawnShellsAtAllReallyPatch().Enable();
                     }
+                    else
+                    {
+                        new DontSpawnShellsFiringPatch().Disable();
+                        new DontSpawnShellsJamPatch().Disable();
+                        new DontSpawnShellsAtAllReallyPatch().Disable();
+                    }
                     if (framesaverWeatherUpdatesEnabledConfig.Value)
                     {
+                        new SkyDelayUpdatesPatch().Enable();
+                        new WeatherLateUpdatePatch().Enable();
                         new CloudsControllerDelayUpdatesPatch().Enable();
                         new WeatherEventControllerDelayUpdatesPatch().Enable();
+                    }
+                    else
+                    {
+                        new SkyDelayUpdatesPatch().Disable();
+                        new WeatherLateUpdatePatch().Disable();
+                        new CloudsControllerDelayUpdatesPatch().Disable();
+                        new WeatherEventControllerDelayUpdatesPatch().Disable();
                     }
                 }
                 else
@@ -180,20 +250,18 @@ namespace TYR_DeClutterer
                     QualitySettings.pixelLightCount = defaultpixelLightCount;
                     QualitySettings.shadows = defaultShadows;
                     QualitySettings.shadowCascades = defaultshadowCascades;
-                    QualitySettings.shadowCascade2Split = defaultshadowCascade2Split;
-                    QualitySettings.shadowCascade4Split = defaultshadowCascade4Split;
                     QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
                     QualitySettings.lodBias = defaultlodBias;
-                    new DontSpawnShellsFiringPatch().Disable();
-                    new DontSpawnShellsJamPatch().Disable();
-                    new DontSpawnShellsAtAllReallyPatch().Disable();
+                    new PhysicsUpdatePatch().Disable();
+                    new PhysicsFixedUpdatePatch().Disable();
+                    new RagdollPhysicsLateUpdatePatch().Disable();
                     new AmbientLightOptimizeRenderingPatch().Disable();
                     new AmbientLightDisableUpdatesPatch().Disable();
                     new AmbientLightDisableLateUpdatesPatch().Disable();
+                    new SkyDelayUpdatesPatch().Disable();
+                    new WeatherLateUpdatePatch().Disable();
                     new CloudsControllerDelayUpdatesPatch().Disable();
                     new WeatherEventControllerDelayUpdatesPatch().Disable();
-                    new PhysicsUpdatePatch().Disable();
-                    new PhysicsFixedUpdatePatch().Disable();
                 }
             }
         }
@@ -227,9 +295,9 @@ namespace TYR_DeClutterer
             if (gameWorld == null || gameWorld.MainPlayer == null || IsInHideout())
                 return;
 
-            deCluttered = true;
             DeClutterScene();
             DeClutterVisuals();
+            deCluttered = true;
         }
         private bool IsInHideout()
         {
@@ -248,83 +316,149 @@ namespace TYR_DeClutterer
         }
         private void DeClutterVisuals()
         {
-            if (applyFramesaver)
+            if (deCluttered)
             {
-                if (framesaverPhysicsEnabledConfig.Value)
+                if (framesaverEnabledConfig.Value)
                 {
-                    new PhysicsUpdatePatch().Enable();
-                    new PhysicsFixedUpdatePatch().Enable();
+                    if (framesaverPhysicsEnabledConfig.Value)
+                    {
+                        new RagdollPhysicsLateUpdatePatch().Enable();
+                        new PhysicsUpdatePatch().Enable();
+                        new PhysicsFixedUpdatePatch().Enable();
+                    }
+                    else
+                    {
+                        new RagdollPhysicsLateUpdatePatch().Disable();
+                        new PhysicsUpdatePatch().Disable();
+                        new PhysicsFixedUpdatePatch().Disable();
+                    }
+                    if (framesaverParticlesEnabledConfig.Value)
+                    {
+                        QualitySettings.softParticles = false;
+                        if (framesaverParticleBudgetDividerConfig.Value > 1)
+                        {
+                            QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget / framesaverParticleBudgetDividerConfig.Value;
+                        }
+                    }
+                    else
+                    {
+                        QualitySettings.softParticles = defaultsoftParticles;
+                        QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget;
+                    }
+                    if (framesaverSoftVegetationEnabledConfig.Value)
+                    {
+                        QualitySettings.softVegetation = false;
+                    }
+                    else
+                    {
+                        QualitySettings.softVegetation = defaultsoftVegetation;
+                    }
+                    if (framesaverReflectionsEnabledConfig.Value)
+                    {
+                        QualitySettings.realtimeReflectionProbes = false;
+                    }
+                    else
+                    {
+                        QualitySettings.realtimeReflectionProbes = defaultrealtimeReflectionProbes;
+                    }
+                    if (framesaverLightingShadowsEnabledConfig.Value)
+                    {
+                        new AmbientLightOptimizeRenderingPatch().Enable();
+                        new AmbientLightDisableUpdatesPatch().Enable();
+                        new AmbientLightDisableLateUpdatesPatch().Enable();
+                    }
+                    else
+                    {
+                        new AmbientLightOptimizeRenderingPatch().Disable();
+                        new AmbientLightDisableUpdatesPatch().Disable();
+                        new AmbientLightDisableLateUpdatesPatch().Disable();
+                    }
+                    if (framesaverLightingShadowCascadesEnabledConfig.Value)
+                    {
+                        QualitySettings.shadows = ShadowQuality.HardOnly;
+                        if (framesaverShadowDividerConfig.Value > 1)
+                        {
+                            QualitySettings.pixelLightCount = 4 / framesaverPixelLightDividerConfig.Value;
+                            QualitySettings.shadowCascades = 4 / framesaverShadowDividerConfig.Value;
+                        }
+                    }
+                    else
+                    {
+                        QualitySettings.pixelLightCount = defaultpixelLightCount;
+                        QualitySettings.shadows = defaultShadows;
+                        QualitySettings.shadowCascades = defaultshadowCascades;
+                    }
+                    if (framesaverTexturesEnabledConfig.Value)
+                    {
+                        if (framesaverTextureSizeConfig.Value > 1)
+                        {
+                            QualitySettings.masterTextureLimit = 0 + framesaverTextureSizeConfig.Value;
+                        }
+                    }
+                    else
+                    {
+                        QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
+                    }
+                    if (framesaverLODEnabledConfig.Value)
+                    {
+                        if (framesaverLODBiasConfig.Value > 1.0f)
+                        {
+                            QualitySettings.lodBias = 2.0f / framesaverLODBiasConfig.Value;
+                        }
+                    }
+                    else
+                    {
+                        QualitySettings.lodBias = defaultlodBias;
+                    }
+                    if (framesaverShellChangesEnabledConfig.Value)
+                    {
+                        new DontSpawnShellsFiringPatch().Enable();
+                        new DontSpawnShellsJamPatch().Enable();
+                        new DontSpawnShellsAtAllReallyPatch().Enable();
+                    }
+                    else
+                    {
+                        new DontSpawnShellsFiringPatch().Disable();
+                        new DontSpawnShellsJamPatch().Disable();
+                        new DontSpawnShellsAtAllReallyPatch().Disable();
+                    }
+                    if (framesaverWeatherUpdatesEnabledConfig.Value)
+                    {
+                        new SkyDelayUpdatesPatch().Enable();
+                        new WeatherLateUpdatePatch().Enable();
+                        new CloudsControllerDelayUpdatesPatch().Enable();
+                        new WeatherEventControllerDelayUpdatesPatch().Enable();
+                    }
+                    else
+                    {
+                        new SkyDelayUpdatesPatch().Disable();
+                        new WeatherLateUpdatePatch().Disable();
+                        new CloudsControllerDelayUpdatesPatch().Disable();
+                        new WeatherEventControllerDelayUpdatesPatch().Disable();
+                    }
                 }
-                if (framesaverParticlesEnabledConfig.Value)
+                else
                 {
-                    QualitySettings.softParticles = false;
-                    QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget / framesaverParticleBudgetDividerConfig.Value;
+                    QualitySettings.softParticles = defaultsoftParticles;
+                    QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget;
+                    QualitySettings.softVegetation = defaultsoftVegetation;
+                    QualitySettings.realtimeReflectionProbes = defaultrealtimeReflectionProbes;
+                    QualitySettings.pixelLightCount = defaultpixelLightCount;
+                    QualitySettings.shadows = defaultShadows;
+                    QualitySettings.shadowCascades = defaultshadowCascades;
+                    QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
+                    QualitySettings.lodBias = defaultlodBias;
+                    new PhysicsUpdatePatch().Disable();
+                    new PhysicsFixedUpdatePatch().Disable();
+                    new RagdollPhysicsLateUpdatePatch().Disable();
+                    new AmbientLightOptimizeRenderingPatch().Disable();
+                    new AmbientLightDisableUpdatesPatch().Disable();
+                    new AmbientLightDisableLateUpdatesPatch().Disable();
+                    new SkyDelayUpdatesPatch().Disable();
+                    new WeatherLateUpdatePatch().Disable();
+                    new CloudsControllerDelayUpdatesPatch().Disable();
+                    new WeatherEventControllerDelayUpdatesPatch().Disable();
                 }
-                if (framesaverSoftVegetationEnabledConfig.Value)
-                {
-                    QualitySettings.softVegetation = false;
-                }
-                if (framesaverReflectionsEnabledConfig.Value)
-                {
-                    QualitySettings.realtimeReflectionProbes = false;
-                }
-                if (framesaverLightingShadowsEnabledConfig.Value)
-                {
-                    new AmbientLightOptimizeRenderingPatch().Enable();
-                    new AmbientLightDisableUpdatesPatch().Enable();
-                    new AmbientLightDisableLateUpdatesPatch().Enable();
-                }
-                if (framesaverLightingShadowCascadesEnabledConfig.Value)
-                {
-                    QualitySettings.pixelLightCount = defaultpixelLightCount / framesaverPixelLightDividerConfig.Value;
-                    QualitySettings.shadows = ShadowQuality.HardOnly;
-                    QualitySettings.shadowCascades = defaultshadowCascades / framesaverShadowDividerConfig.Value;
-                    QualitySettings.shadowCascade2Split = defaultshadowCascade2Split * framesaverShadowDividerConfig.Value;
-                    QualitySettings.shadowCascade4Split = defaultshadowCascade4Split * framesaverShadowDividerConfig.Value;
-                }
-                if (framesaverTexturesEnabledConfig.Value)
-                {
-                    QualitySettings.masterTextureLimit = defaultmasterTextureLimit * framesaverTextureSizeConfig.Value;
-                }
-                if (framesaverLODEnabledConfig.Value)
-                {
-                    QualitySettings.lodBias = defaultlodBias - framesaverLODBiasConfig.Value;
-                }
-                if (framesaverShellChangesEnabledConfig.Value)
-                {
-                    new DontSpawnShellsFiringPatch().Enable();
-                    new DontSpawnShellsJamPatch().Enable();
-                    new DontSpawnShellsAtAllReallyPatch().Enable();
-                }
-                if (framesaverWeatherUpdatesEnabledConfig.Value)
-                {
-                    new CloudsControllerDelayUpdatesPatch().Enable();
-                    new WeatherEventControllerDelayUpdatesPatch().Enable();
-                }
-            }
-            else
-            {
-                QualitySettings.softParticles = defaultsoftParticles;
-                QualitySettings.particleRaycastBudget = defaultparticleRaycastBudget;
-                QualitySettings.softVegetation = defaultsoftVegetation;
-                QualitySettings.realtimeReflectionProbes = defaultrealtimeReflectionProbes;
-                QualitySettings.pixelLightCount = defaultpixelLightCount;
-                QualitySettings.shadows = defaultShadows;
-                QualitySettings.shadowCascades = defaultshadowCascades;
-                QualitySettings.shadowCascade2Split = defaultshadowCascade2Split;
-                QualitySettings.shadowCascade4Split = defaultshadowCascade4Split;
-                QualitySettings.masterTextureLimit = defaultmasterTextureLimit;
-                QualitySettings.lodBias = defaultlodBias;
-                new DontSpawnShellsFiringPatch().Disable();
-                new DontSpawnShellsJamPatch().Disable();
-                new DontSpawnShellsAtAllReallyPatch().Disable();
-                new AmbientLightOptimizeRenderingPatch().Disable();
-                new AmbientLightDisableUpdatesPatch().Disable();
-                new AmbientLightDisableLateUpdatesPatch().Disable();
-                new CloudsControllerDelayUpdatesPatch().Disable();
-                new WeatherEventControllerDelayUpdatesPatch().Disable();
-                new PhysicsUpdatePatch().Disable();
-                new PhysicsFixedUpdatePatch().Disable();
             }
         }
         private void DeClutterScene()

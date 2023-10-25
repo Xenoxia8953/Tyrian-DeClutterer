@@ -1,4 +1,5 @@
 ﻿using Aki.Reflection.Patching;
+using EFT;
 using HarmonyLib;
 using System.Reflection;
 
@@ -39,6 +40,25 @@ namespace Framesaver
             if (everyOtherFixedUpdate)
             {
                 GClass570.GClass571.FixedUpdate();
+            }
+            return false;
+        }
+    }
+    public class RagdollPhysicsLateUpdatePatch : ModulePatch
+    {
+        public static bool everyOtherFixedUpdate = false;
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(CorpseRagdollTestApplication), "LateUpdate");
+        }
+
+        [PatchPrefix]
+        public static bool PatchPrefix()
+        {
+            everyOtherFixedUpdate = !everyOtherFixedUpdate;
+            if (everyOtherFixedUpdate)
+            {
+                GClass570.SyncTransforms();
             }
             return false;
         }
