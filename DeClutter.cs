@@ -11,14 +11,16 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Framesaver;
+using System.Collections;
 
 namespace TYR_DeClutterer
 {
-    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.1.1")]
+    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.1.3")]
     public class DeClutter : BaseUnityPlugin
     {
         private static GameWorld gameWorld;
         public static bool MapLoaded() => Singleton<GameWorld>.Instantiated;
+        private List<GameObject> allGameObjectsList = new List<GameObject>();
         public static List<GameObject> savedClutterObjects = new List<GameObject>();
         public static Player Player;
         private bool deCluttered = false;
@@ -283,6 +285,7 @@ namespace TYR_DeClutterer
         }
         private void OnSceneUnloaded(Scene scene)
         {
+            allGameObjectsList.Clear();
             savedClutterObjects.Clear();
             deCluttered = false;
         }
@@ -461,20 +464,6 @@ namespace TYR_DeClutterer
                 }
             }
         }
-        private void DeClutterScene()
-        {
-            //EFT.UI.ConsoleScreen.LogError("Running DeClutterScript");
-            // Find all GameObjects in the scene, including children
-            GameObject[] allGameObjects = GetAllGameObjectsInScene();
-            foreach (GameObject obj in allGameObjects)
-            {
-                if (obj != null && ShouldDisableObject(obj))
-                {
-                    obj.SetActive(false);
-                    //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
-                }
-            }
-        }
         private void DeClutterEnabled()
         {
             foreach (GameObject obj in savedClutterObjects)
@@ -495,52 +484,53 @@ namespace TYR_DeClutterer
                 }
             }
         }
-        private GameObject[] GetAllGameObjectsInScene()
+        private void DeClutterScene()
         {
-            List<GameObject> allGameObjects = new List<GameObject>();
-            GameObject[] rootObjects = GameObject.FindObjectsOfType<GameObject>();
-
-            foreach (GameObject root in rootObjects)
-            {
-                bool isLODGroup = root.GetComponent<LODGroup>() != null;
-                bool isTransform = root.GetComponent<Transform>() != null;
-                bool isMesh = root.GetComponent<MeshRenderer>() != null;
-                bool isTarkovObservedItem = root.GetComponent<ObservedLootItem>() != null;
-                bool isTarkovItem = root.GetComponent<LootItem>() != null;
-                bool isTarkovWeaponMod = root.GetComponent<WeaponModPoolObject>() != null;
-                bool hasRainCondensator = root.GetComponent<RainCondensator>() != null;
-                bool isPlayer = root.GetComponent<Player>() != null;
-                bool isLocalPlayer = root.GetComponent<LocalPlayer>() != null;
-                if ((isLODGroup || isTransform || isMesh) && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !isPlayer && !isLocalPlayer)
-                {
-                    // Add the root object
-                    allGameObjects.Add(root);
-
-                    // Recursively add children
-                    AddChildren(root.transform, allGameObjects);
-                }
-            }
-            return allGameObjects.ToArray();
+            StaticManager.BeginCoroutine(GetAllGameObjectsInSceneCoroutine());
+            StaticManager.BeginCoroutine(DeClutterGameObjects());
         }
-        private void AddChildren(Transform parent, List<GameObject> allGameObjects)
+        private IEnumerator DeClutterGameObjects()
         {
-            foreach (Transform child in parent)
+            // Loop until the coroutine has finished
+            while (true)
             {
-                bool isLODGroup = child.GetComponent<LODGroup>() != null;
-                bool isTransform = child.GetComponent<Transform>() != null;
-                bool isMesh = child.GetComponent<MeshRenderer>() != null;
-                bool isTarkovObservedItem = child.GetComponent<ObservedLootItem>() != null;
-                bool isTarkovItem = child.GetComponent<LootItem>() != null;
-                bool isTarkovWeaponMod = child.GetComponent<WeaponModPoolObject>() != null;
-                bool hasRainCondensator = child.GetComponent<RainCondensator>() != null;
-                bool isPlayer = child.GetComponent<Player>() != null;
-                bool isLocalPlayer = child.GetComponent<LocalPlayer>() != null;
-                if ((isLODGroup || isTransform || isMesh) && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !isPlayer && !isLocalPlayer)
+                if (allGameObjectsList != null && allGameObjectsList.Count > 0)
                 {
-                    allGameObjects.Add(child.gameObject);
+                    // Coroutine has finished, and allGameObjectsList is populated
+                    GameObject[] allGameObjectsArray = allGameObjectsList.ToArray();
+                    foreach (GameObject obj in allGameObjectsArray)
+                    {
+                        if (obj != null && ShouldDisableObject(obj))
+                        {
+                            obj.SetActive(false);
+                            //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
+                        }
+                    }
                 }
-                AddChildren(child, allGameObjects);
+                yield break;
             }
+        }
+        private IEnumerator GetAllGameObjectsInSceneCoroutine()
+        {
+            GameObject[] gameObjects = GameObject.FindObjectsOfType<GameObject>();
+
+            foreach (GameObject obj in gameObjects)
+            {
+                bool isLODGroup = obj.GetComponent<LODGroup>() != null;
+                bool isTarkovContainer = obj.GetComponent<LootableContainer>() != null;
+                bool isTarkovContainerGroup = obj.GetComponent<LootableContainersGroup>() != null;
+                bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
+                bool isTarkovItem = obj.GetComponent<LootItem>() != null;
+                bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
+                bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
+                bool isPlayer = obj.GetComponent<Player>() != null;
+
+                if ((isLODGroup) && !isTarkovContainer && !isTarkovContainerGroup && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !isPlayer)
+                {
+                    allGameObjectsList.Add(obj);
+                }
+            }
+            yield break;
         }
         private Dictionary<string, bool> clutterNameDictionary = new Dictionary<string, bool>
         {
@@ -549,6 +539,7 @@ namespace TYR_DeClutterer
         {
             if (declutterGarbageEnabledConfig.Value)
             {
+                clutterNameDictionary["turniket_"] = true;
                 clutterNameDictionary["tray_"] = true;
                 clutterNameDictionary["electronic_box"] = true;
                 clutterNameDictionary["styrofoam_"] = true;
@@ -665,6 +656,7 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["vetky4_"] = true;
                 clutterNameDictionary["vetky5_"] = true;
                 clutterNameDictionary["vetky6_"] = true;
+                clutterNameDictionary["tile_broken_"] = true;
             }
 
             if (declutterSpentCartridgesEnabledConfig.Value)
@@ -758,31 +750,12 @@ namespace TYR_DeClutterer
             GameObject childGameColliderObject = null;
             string objName = obj.name.ToLower();
             bool isLODGroup = obj.GetComponent<LODGroup>() != null;
-            bool isMesh = obj.GetComponent<MeshRenderer>() != null;
-            bool isTarkovContainer = obj.GetComponent<LootableContainer>() != null;
-            bool isTarkovContainerGroup = obj.GetComponent<LootableContainersGroup>() != null;
-            bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
-            bool isTarkovItem = obj.GetComponent<LootItem>() != null;
-            bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
-            bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
-            bool hasBoxCollider = obj.GetComponent<BoxCollider>()?.enabled ?? false;
             bool childHasMesh = false;
             bool childHasCollider = false;
             bool dontDisableName = dontDisableDictionary.Keys.Any(key => obj.name.ToLower().Contains(key.ToLower()));
-
-            if (isLODGroup &&
-                !dontDisableName &&
-                !isTarkovObservedItem &&
-                !isTarkovItem &&
-                !isTarkovWeaponMod &&
-                !hasRainCondensator &&
-                !hasBoxCollider &&
-                !isTarkovContainer &&
-                !isTarkovContainerGroup)
-            {
                 //EFT.UI.ConsoleScreen.LogError("Found Lod Group " + obj.name);
                 bool foundClutterName = clutterNameDictionary.Keys.Any(key => obj.name.ToLower().Contains(key.ToLower()));
-                if (foundClutterName)
+                if (foundClutterName && !dontDisableName)
                 {
                     //EFT.UI.ConsoleScreen.LogError("Found Clutter Name" + obj.name);
                     foreach (Transform child in obj.transform)
@@ -794,6 +767,10 @@ namespace TYR_DeClutterer
                                 // Exit the loop since we've found what we need
                                 break;
                             }
+                    }
+                    if (!childHasMesh)
+                    {
+                        return false;
                     }
                     foreach (Transform child in obj.transform)
                     {
@@ -808,19 +785,17 @@ namespace TYR_DeClutterer
                             }
                         }
                     }
-                    if (isMesh || childHasMesh)
+                    if (childHasCollider)
                     {
-                        //EFT.UI.ConsoleScreen.LogError("Passed the bullshit brigade " + obj.name);
-                        float sizeOnY = GetMeshSizeOnY(childGameMeshObject);
-
-                        if ((childHasCollider && sizeOnY > 0.0f && (sizeOnY <= 0.25f * declutterScaleOffsetConfig.Value)) || (!childHasCollider && (sizeOnY <= 1f * declutterScaleOffsetConfig.Value)))
-                        {
-                            savedClutterObjects.Add(obj);
-                            return true;
-                        }
+                        return false;
+                    }
+                    float sizeOnY = GetMeshSizeOnY(childGameMeshObject);
+                if (childHasMesh && !childHasCollider && sizeOnY <= 2f * declutterScaleOffsetConfig.Value)
+                    {
+                        savedClutterObjects.Add(obj);
+                        return true;
                     }
                 }
-            }
             return false;
         }
         private float GetMeshSizeOnY(GameObject childGameObject)
