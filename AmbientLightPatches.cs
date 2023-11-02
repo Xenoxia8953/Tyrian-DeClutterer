@@ -1,6 +1,8 @@
+using System;
 using System.Linq;
 using System.Reflection;
 using Aki.Reflection.Patching;
+using Aki.Reflection.Utils;
 using EFT.Weather;
 using HarmonyLib;
 
@@ -59,45 +61,62 @@ namespace Framesaver
     }
     public class WeatherLateUpdatePatch : ModulePatch
     {
-        public static bool everyOtherFixedUpdate = false;
+        private static MethodInfo _updateClass1707Method;
+        private static MethodInfo _method_4WeatherControllerMethod;
+        public static bool everyOtherLateUpdate = false;
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(WeatherController), "FixedUpdate");
+            Type class1707Type = PatchConstants.EftTypes.Single(x => x.Name == "Class1707");
+            _updateClass1707Method = AccessTools.Method(class1707Type, "Update");
+            _method_4WeatherControllerMethod = AccessTools.Method(typeof(WeatherController), "method_4");
+            return AccessTools.Method(typeof(WeatherController), "LateUpdate");
         }
 
         [PatchPrefix]
-        public static bool PatchPrefix()
+        public static bool PatchPrefix(WeatherController __instance, object ___class1707_0, ToDController ___TimeOfDayController)
         {
-            everyOtherFixedUpdate = !everyOtherFixedUpdate;
-            if (everyOtherFixedUpdate)
+            everyOtherLateUpdate = !everyOtherLateUpdate;
+            if (everyOtherLateUpdate)
             {
-                AccessTools.Method(typeof(WeatherController), "TimeOfDayController.Update()");
-                AccessTools.Method(typeof(WeatherController), "class1707_0.Update()");
-                AccessTools.Method(typeof(WeatherController), "method_4");
+                ___TimeOfDayController.Update();
+                _updateClass1707Method.Invoke(___class1707_0, null);
+                _method_4WeatherControllerMethod.Invoke(__instance, null);
             }
             return false;
         }
     }
     public class SkyDelayUpdatesPatch : ModulePatch
     {
-        public static bool everyOtherFixedUpdate = false;
+        private static MethodInfo _method_17_TOD_SkyMethod;
+        private static MethodInfo _method_18_TOD_SkyMethod;
+        private static MethodInfo _method_0_TOD_SkyMethod;
+        private static MethodInfo _method_1_TOD_SkyMethod;
+        private static MethodInfo _method_2_TOD_SkyMethod;
+        private static MethodInfo _method_3_TOD_SkyMethod;
+        public static bool everyOtherLateUpdate = false;
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(TOD_Sky), "FixedUpdate");
+            _method_17_TOD_SkyMethod = AccessTools.Method(typeof(TOD_Sky), "method_17");
+            _method_18_TOD_SkyMethod = AccessTools.Method(typeof(TOD_Sky), "method_18");
+            _method_0_TOD_SkyMethod = AccessTools.Method(typeof(TOD_Sky), "method_0");
+            _method_1_TOD_SkyMethod = AccessTools.Method(typeof(TOD_Sky), "method_1");
+            _method_2_TOD_SkyMethod = AccessTools.Method(typeof(TOD_Sky), "method_2");
+            _method_3_TOD_SkyMethod = AccessTools.Method(typeof(TOD_Sky), "method_3");
+            return AccessTools.Method(typeof(TOD_Sky), "LateUpdate");
         }
 
         [PatchPrefix]
-        public static bool PatchPrefix()
+        public static bool PatchPrefix(TOD_Sky __instance)
         {
-            everyOtherFixedUpdate = !everyOtherFixedUpdate;
-            if (everyOtherFixedUpdate)
+            everyOtherLateUpdate = !everyOtherLateUpdate;
+            if (everyOtherLateUpdate)
             {
-                AccessTools.Method(typeof(TOD_Sky), "method_17");
-                AccessTools.Method(typeof(TOD_Sky), "method_18");
-                AccessTools.Method(typeof(TOD_Sky), "method_0");
-                AccessTools.Method(typeof(TOD_Sky), "method_1");
-                AccessTools.Method(typeof(TOD_Sky), "method_2");
-                AccessTools.Method(typeof(TOD_Sky), "method_3");
+                _method_17_TOD_SkyMethod.Invoke(__instance, null);
+                _method_18_TOD_SkyMethod.Invoke(__instance, null);
+                _method_0_TOD_SkyMethod.Invoke(__instance, null);
+                _method_1_TOD_SkyMethod.Invoke(__instance, null);
+                _method_2_TOD_SkyMethod.Invoke(__instance, null);
+                _method_3_TOD_SkyMethod.Invoke(__instance, null);
             }
             return false;
         }

@@ -12,10 +12,11 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Framesaver;
 using System.Collections;
+using Koenigz.PerfectCulling.EFT;
 
 namespace TYR_DeClutterer
 {
-    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.1.3")]
+    [BepInPlugin("com.TYR.DeClutter", "TYR_DeClutter", "1.1.5")]
     public class DeClutter : BaseUnityPlugin
     {
         private static GameWorld gameWorld;
@@ -32,6 +33,7 @@ namespace TYR_DeClutterer
         public static ConfigEntry<bool> declutterDecalsEnabledConfig;
         public static ConfigEntry<bool> declutterPuddlesEnabledConfig;
         public static ConfigEntry<bool> declutterShardsEnabledConfig;
+        public static ConfigEntry<bool> declutterUnscrutinizedEnabledConfig;
         public static ConfigEntry<float> declutterScaleOffsetConfig;
         public static ConfigEntry<bool> framesaverEnabledConfig;
         public static ConfigEntry<bool> framesaverPhysicsEnabledConfig;
@@ -44,6 +46,7 @@ namespace TYR_DeClutterer
         public static ConfigEntry<bool> framesaverWeatherUpdatesEnabledConfig;
         public static ConfigEntry<bool> framesaverTexturesEnabledConfig;
         public static ConfigEntry<bool> framesaverLODEnabledConfig;
+        public static ConfigEntry<bool> framesaverFireAndSmokeEnabledConfig;
         public static ConfigEntry<int> framesaverParticleBudgetDividerConfig;
         public static ConfigEntry<int> framesaverPixelLightDividerConfig;
         public static ConfigEntry<int> framesaverShadowDividerConfig;
@@ -71,19 +74,21 @@ namespace TYR_DeClutterer
             declutterSpentCartridgesEnabledConfig = Config.Bind("B - De-Clutter Settings", "C - Spent Cartridges De-Clutter", true, "De-Clutters pre-generated spent ammunition on floor.");
             declutterFakeFoodEnabledConfig = Config.Bind("B - De-Clutter Settings", "D - Fake Food De-Clutter", true, "De-Clutters fake 'food' items.");
             declutterDecalsEnabledConfig = Config.Bind("B - De-Clutter Settings", "E - Decal De-Clutter", true, "De-Clutters decals (Blood, grafiti, etc.)");
-            declutterPuddlesEnabledConfig = Config.Bind("B - De-Clutter Settings", "F - Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");
+            declutterPuddlesEnabledConfig = Config.Bind("B - De-Clutter Settings", "F - Puddle De-Clutter", true, "De-Clutters fake reflective puddles.");  
             declutterShardsEnabledConfig = Config.Bind("B - De-Clutter Settings", "G - Glass & Tile Shards", true, "De-Clutters things labeled 'shards' or similar. The things you can step on that make noise.");
+            declutterUnscrutinizedEnabledConfig = Config.Bind("B - De-Clutter Settings", "H - Experimental Unscrutinized Disabler", false, "De-Clutters literally everything that doesn't have a collider, doesn't chare what the name is or the group is so above enablers will have no effect. It'll disable it all. Experimental, testing however has had positive results. Massively improves FPS.");
             framesaverEnabledConfig = Config.Bind("C - Framesaver Enabler", "A - Framesaver Enabled", false, "Enables Ari's Framesaver methods, with some of my additions.");
-            framesaverPhysicsEnabledConfig = Config.Bind("C - Framesaver Enabler", "B - Physics Changes", false, "Experimental physics optimization, uses default Unity physics on FixedUpdate rather than BSG's physics implementations.");
+            framesaverPhysicsEnabledConfig = Config.Bind("C - Framesaver Enabler", "B - Physics Changes", false, "Experimental physics optimization, runs physics at half speed.");
             framesaverShellChangesEnabledConfig = Config.Bind("C - Framesaver Enabler", "C - Shell Spawn Changes", false, "Stops spent cartride shells from spawning.");
             framesaverParticlesEnabledConfig = Config.Bind("C - Framesaver Enabler", "D - Particle Changes", false, "Enables particle changes.");
-            framesaverSoftVegetationEnabledConfig = Config.Bind("C - Framesaver Enabler", "E - Vegetation Changes", false, "Enables vegetation changes.");
-            framesaverReflectionsEnabledConfig = Config.Bind("C - Framesaver Enabler", "F - Reflection Changes", false, "Enables reflection changes.");
-            framesaverLightingShadowsEnabledConfig = Config.Bind("C - Framesaver Enabler", "G - Lighting & Shadow Changes", false, "Enables lighting & shadow changes.");
-            framesaverLightingShadowCascadesEnabledConfig = Config.Bind("C - Framesaver Enabler", "H - Shadow Cascade Changes", false, "Enables shadow cascade changes.");
-            framesaverWeatherUpdatesEnabledConfig = Config.Bind("C - Framesaver Enabler", "I - Cloud & Weather Changes", false, "Enables Cloud Shadow & Weather changes.");
-            framesaverTexturesEnabledConfig = Config.Bind("C - Framesaver Enabler", "J - Texture Changes", false, "Enables texture changes.");
-            framesaverLODEnabledConfig = Config.Bind("C - Framesaver Enabler", "K - LOD Changes", false, "Enables LOD changes.");
+            framesaverFireAndSmokeEnabledConfig = Config.Bind("C - Framesaver Enabler", "E - Fire & Smoke Changes", false, "Removes map-baked Fire and Smoke effects.");
+            framesaverSoftVegetationEnabledConfig = Config.Bind("C - Framesaver Enabler", "F - Vegetation Changes", false, "Enables vegetation changes.");
+            framesaverReflectionsEnabledConfig = Config.Bind("C - Framesaver Enabler", "G - Reflection Changes", false, "Enables reflection changes.");
+            framesaverLightingShadowsEnabledConfig = Config.Bind("C - Framesaver Enabler", "H - Lighting & Shadow Changes", false, "Enables lighting & shadow changes.");
+            framesaverLightingShadowCascadesEnabledConfig = Config.Bind("C - Framesaver Enabler", "I - Shadow Cascade Changes", false, "Enables shadow cascade changes.");
+            framesaverWeatherUpdatesEnabledConfig = Config.Bind("C - Framesaver Enabler", "J - Cloud & Weather Changes", false, "Enables Cloud Shadow & Weather changes.");
+            framesaverTexturesEnabledConfig = Config.Bind("C - Framesaver Enabler", "K - Texture Changes", false, "Enables texture changes.");
+            framesaverLODEnabledConfig = Config.Bind("C - Framesaver Enabler", "L - LOD Changes", false, "Enables LOD changes.");
             framesaverParticleBudgetDividerConfig = Config.Bind<int>("D - Framesaver Settings", "A - Particle Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Particle Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
             framesaverPixelLightDividerConfig = Config.Bind<int>("D - Framesaver Settings", "B - Lighting Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Lighting Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
             framesaverShadowDividerConfig = Config.Bind<int>("D - Framesaver Settings", "C - Shadow Quality Divider", 1, new BepInEx.Configuration.ConfigDescription("1 is default, Higher number = Lower Shadow Quality.", new BepInEx.Configuration.AcceptableValueRange<int>(1, 4)));
@@ -108,6 +113,7 @@ namespace TYR_DeClutterer
             framesaverShadowDividerConfig.SettingChanged += OnApplyFramesaverSettingChanged;
             framesaverTextureSizeConfig.SettingChanged += OnApplyFramesaverSettingChanged;
             framesaverLODBiasConfig.SettingChanged += OnApplyFramesaverSettingChanged;
+            framesaverFireAndSmokeEnabledConfig.SettingChanged += OnApplyFramesaverSettingChanged;
             defaultsoftParticles = QualitySettings.softParticles;
             defaultparticleRaycastBudget = QualitySettings.particleRaycastBudget;
             defaultsoftVegetation = QualitySettings.softVegetation;
@@ -122,8 +128,6 @@ namespace TYR_DeClutterer
         // Framesaver information and patches brought to you by Ari.
         private void OnApplyFramesaverSettingChanged(object sender, EventArgs e)
         {
-            if (deCluttered)
-            {
                 if (framesaverEnabledConfig.Value)
                 {
                     if (framesaverPhysicsEnabledConfig.Value)
@@ -242,6 +246,14 @@ namespace TYR_DeClutterer
                         new CloudsControllerDelayUpdatesPatch().Disable();
                         new WeatherEventControllerDelayUpdatesPatch().Disable();
                     }
+                    if (framesaverFireAndSmokeEnabledConfig.Value)
+                    {
+                        new FlameDamageTriggerPatch().Enable();
+                    }
+                    else
+                    {
+                        new FlameDamageTriggerPatch().Disable();
+                    }
                 }
                 else
                 {
@@ -264,8 +276,8 @@ namespace TYR_DeClutterer
                     new WeatherLateUpdatePatch().Disable();
                     new CloudsControllerDelayUpdatesPatch().Disable();
                     new WeatherEventControllerDelayUpdatesPatch().Disable();
+                    new FlameDamageTriggerPatch().Disable();
                 }
-            }
         }
         private void OnApplyDeclutterSettingChanged(object sender, EventArgs e)
         {
@@ -298,9 +310,9 @@ namespace TYR_DeClutterer
             if (gameWorld == null || gameWorld.MainPlayer == null || IsInHideout())
                 return;
 
+            deCluttered = true;
             DeClutterScene();
             DeClutterVisuals();
-            deCluttered = true;
         }
         private bool IsInHideout()
         {
@@ -319,8 +331,6 @@ namespace TYR_DeClutterer
         }
         private void DeClutterVisuals()
         {
-            if (deCluttered)
-            {
                 if (framesaverEnabledConfig.Value)
                 {
                     if (framesaverPhysicsEnabledConfig.Value)
@@ -439,6 +449,14 @@ namespace TYR_DeClutterer
                         new CloudsControllerDelayUpdatesPatch().Disable();
                         new WeatherEventControllerDelayUpdatesPatch().Disable();
                     }
+                    if (framesaverFireAndSmokeEnabledConfig.Value)
+                    {
+                        new FlameDamageTriggerPatch().Enable();
+                    }
+                    else
+                    {
+                        new FlameDamageTriggerPatch().Disable();
+                    }
                 }
                 else
                 {
@@ -461,8 +479,8 @@ namespace TYR_DeClutterer
                     new WeatherLateUpdatePatch().Disable();
                     new CloudsControllerDelayUpdatesPatch().Disable();
                     new WeatherEventControllerDelayUpdatesPatch().Disable();
+                    new FlameDamageTriggerPatch().Disable();
                 }
-            }
         }
         private void DeClutterEnabled()
         {
@@ -503,6 +521,7 @@ namespace TYR_DeClutterer
                         if (obj != null && ShouldDisableObject(obj))
                         {
                             obj.SetActive(false);
+                            //Logger.LogInfo("Clutter Removed " + obj.name);
                             //EFT.UI.ConsoleScreen.LogError("Clutter Removed " + obj.name);
                         }
                     }
@@ -517,15 +536,61 @@ namespace TYR_DeClutterer
             foreach (GameObject obj in gameObjects)
             {
                 bool isLODGroup = obj.GetComponent<LODGroup>() != null;
+                bool isStaticDeferredDecal = obj.GetComponent<StaticDeferredDecal>() != null;
+                bool isParticleSystem = obj.GetComponent<ParticleSystem>() != null;
+                bool isGoodThing = isLODGroup || isStaticDeferredDecal || isParticleSystem;
+                if (framesaverFireAndSmokeEnabledConfig.Value)
+                {
+                    if (declutterDecalsEnabledConfig.Value)
+                    {
+                        isGoodThing = isLODGroup || isStaticDeferredDecal || isParticleSystem;
+                    }
+                    else
+                    {
+                        isGoodThing = isLODGroup || isParticleSystem;
+                    }
+                }
+                else
+                {
+                    if (declutterDecalsEnabledConfig.Value)
+                    {
+                        isGoodThing = isLODGroup || isStaticDeferredDecal;
+                    }
+                    else
+                    {
+                        isGoodThing = isLODGroup;
+                    }
+                }
                 bool isTarkovContainer = obj.GetComponent<LootableContainer>() != null;
                 bool isTarkovContainerGroup = obj.GetComponent<LootableContainersGroup>() != null;
                 bool isTarkovObservedItem = obj.GetComponent<ObservedLootItem>() != null;
                 bool isTarkovItem = obj.GetComponent<LootItem>() != null;
                 bool isTarkovWeaponMod = obj.GetComponent<WeaponModPoolObject>() != null;
                 bool hasRainCondensator = obj.GetComponent<RainCondensator>() != null;
+                bool isLocalPlayer = obj.GetComponent<LocalPlayer>() != null;
                 bool isPlayer = obj.GetComponent<Player>() != null;
+                bool isBotOwner = obj.GetComponent<BotOwner>() != null;
+                bool isCullingObject = obj.GetComponent<CullingObject>() != null;
+                bool isCullingLightObject = obj.GetComponent<CullingLightObject>() != null;
+                bool isCullingGroup = obj.GetComponent<CullingGroup>() != null;
+                bool isDisablerCullingObject = obj.GetComponent<DisablerCullingObject>() != null;
+                bool isObservedCullingManager = obj.GetComponent<ObservedCullingManager>() != null;
+                bool isPerfectCullingCrossSceneGroup = obj.GetComponent<PerfectCullingCrossSceneGroup>() != null;
+                bool isScreenDistanceSwitcher = obj.GetComponent<ScreenDistanceSwitcher>() != null;
+                bool isBakedLodContent = obj.GetComponent<BakedLodContent>() != null;
+                bool isGuidComponent = obj.GetComponent<GuidComponent>() != null;
+                bool isOcclusionPortal = obj.GetComponent<OcclusionPortal>() != null;
+                bool isMultisceneSharedOccluder = obj.GetComponent<MultisceneSharedOccluder>() != null;
+                bool isWindowBreaker = obj.GetComponent<WindowBreaker>() != null;
+                bool isBallisticCollider = obj.GetComponent<BallisticCollider>() != null;
+                bool isBotSpawner = obj.GetComponent<BotSpawner>() != null;
+                bool isBadThing = isTarkovContainer || isTarkovContainerGroup || isTarkovObservedItem || isTarkovItem || isTarkovWeaponMod || 
+                                  hasRainCondensator || isLocalPlayer || isPlayer || isBotOwner || isCullingObject || isCullingLightObject || 
+                                  isCullingGroup || isDisablerCullingObject || isObservedCullingManager || isPerfectCullingCrossSceneGroup || 
+                                  isBakedLodContent || isScreenDistanceSwitcher || isGuidComponent || isOcclusionPortal || isBotSpawner || 
+                                  isMultisceneSharedOccluder || isWindowBreaker || isBallisticCollider;
 
-                if ((isLODGroup) && !isTarkovContainer && !isTarkovContainerGroup && !isTarkovObservedItem && !isTarkovItem && !isTarkovWeaponMod && !hasRainCondensator && !isPlayer)
+                if (isGoodThing && !isBadThing)
                 {
                     allGameObjectsList.Add(obj);
                 }
@@ -667,6 +732,7 @@ namespace TYR_DeClutterer
                 clutterNameDictionary["_shells"] = true;
                 clutterNameDictionary["rifleshell_"] = true;
                 clutterNameDictionary["_rifleshell"] = true;
+                clutterNameDictionary["rifle_shells_"] = true;
             }
 
             if (declutterFakeFoodEnabledConfig.Value)
@@ -733,10 +799,17 @@ namespace TYR_DeClutterer
             { "container", true },
             { "trigger", true },
             { "culling", true },
+            { "collider", true },
+            { "colider", true },
             { "group", true },
             { "manager", true },
             { "scene", true },
-            { "player", true }
+            { "player", true },
+            { "portal", true },
+            { "bakelod", true },
+            { "door", true },
+            { "shadow", true },
+            { "mine", true }
         };
         private bool ShouldDisableObject(GameObject obj)
         {
@@ -746,18 +819,63 @@ namespace TYR_DeClutterer
                 return false;
             }
 
+            bool isStaticDeferredDecal = obj.GetComponent<StaticDeferredDecal>() != null;
+            bool isParticleSystem = obj.GetComponent<ParticleSystem>() != null;
+            bool isGoodThing = isStaticDeferredDecal || isParticleSystem;
             GameObject childGameMeshObject = null;
             GameObject childGameColliderObject = null;
-            string objName = obj.name.ToLower();
-            bool isLODGroup = obj.GetComponent<LODGroup>() != null;
             bool childHasMesh = false;
+            float sizeOnY = 3f;
             bool childHasCollider = false;
+            bool foundClutterName = false;
             bool dontDisableName = dontDisableDictionary.Keys.Any(key => obj.name.ToLower().Contains(key.ToLower()));
-                //EFT.UI.ConsoleScreen.LogError("Found Lod Group " + obj.name);
-                bool foundClutterName = clutterNameDictionary.Keys.Any(key => obj.name.ToLower().Contains(key.ToLower()));
+            //EFT.UI.ConsoleScreen.LogError("Found Lod Group " + obj.name);
+                if (declutterUnscrutinizedEnabledConfig.Value == true)
+                {
+                    foundClutterName = true;
+                }
+                else
+                {
+                    foundClutterName = clutterNameDictionary.Keys.Any(key => obj.name.ToLower().Contains(key.ToLower()));
+                }
                 if (foundClutterName && !dontDisableName)
                 {
-                    //EFT.UI.ConsoleScreen.LogError("Found Clutter Name" + obj.name);
+                //EFT.UI.ConsoleScreen.LogError("Found Clutter Name" + obj.name);
+                    foreach (Transform child in obj.transform)
+                    {
+                        childGameMeshObject = child.gameObject;
+                        bool isTarkovContainer = childGameMeshObject.GetComponent<LootableContainer>() != null;
+                        bool isTarkovContainerGroup = childGameMeshObject.GetComponent<LootableContainersGroup>() != null;
+                        bool isTarkovObservedItem = childGameMeshObject.GetComponent<ObservedLootItem>() != null;
+                        bool isTarkovItem = childGameMeshObject.GetComponent<LootItem>() != null;
+                        bool isTarkovWeaponMod = childGameMeshObject.GetComponent<WeaponModPoolObject>() != null;
+                        bool hasRainCondensator = childGameMeshObject.GetComponent<RainCondensator>() != null;
+                        bool isLocalPlayer = childGameMeshObject.GetComponent<LocalPlayer>() != null;
+                        bool isPlayer = childGameMeshObject.GetComponent<Player>() != null;
+                        bool isBotOwner = childGameMeshObject.GetComponent<BotOwner>() != null;
+                        bool isCullingObject = childGameMeshObject.GetComponent<CullingObject>() != null;
+                        bool isCullingLightObject = childGameMeshObject.GetComponent<CullingLightObject>() != null;
+                        bool isCullingGroup = childGameMeshObject.GetComponent<CullingGroup>() != null;
+                        bool isDisablerCullingObject = childGameMeshObject.GetComponent<DisablerCullingObject>() != null;
+                        bool isObservedCullingManager = childGameMeshObject.GetComponent<ObservedCullingManager>() != null;
+                        bool isPerfectCullingCrossSceneGroup = childGameMeshObject.GetComponent<PerfectCullingCrossSceneGroup>() != null;
+                        bool isScreenDistanceSwitcher = childGameMeshObject.GetComponent<ScreenDistanceSwitcher>() != null;
+                        bool isBakedLodContent = childGameMeshObject.GetComponent<BakedLodContent>() != null;
+                        bool isGuidComponent = childGameMeshObject.GetComponent<GuidComponent>() != null;
+                        bool isOcclusionPortal = childGameMeshObject.GetComponent<OcclusionPortal>() != null;
+                        bool isMultisceneSharedOccluder = childGameMeshObject.GetComponent<MultisceneSharedOccluder>() != null;
+                        bool isWindowBreaker = childGameMeshObject.GetComponent<WindowBreaker>() != null;
+                        bool isBotSpawner = childGameMeshObject.GetComponent<BotSpawner>() != null;
+                        bool isBadThing = isTarkovContainer || isTarkovContainerGroup || isTarkovObservedItem || isTarkovItem || isTarkovWeaponMod ||
+                                          hasRainCondensator || isLocalPlayer || isPlayer || isBotOwner || isCullingObject || isCullingLightObject ||
+                                          isCullingGroup || isDisablerCullingObject || isObservedCullingManager || isPerfectCullingCrossSceneGroup ||
+                                          isBakedLodContent || isScreenDistanceSwitcher || isGuidComponent || isOcclusionPortal || isBotSpawner ||
+                                          isMultisceneSharedOccluder || isWindowBreaker;
+                    if (isBadThing)
+                        {
+                            return false;
+                        }
+                    }
                     foreach (Transform child in obj.transform)
                     {
                             childGameMeshObject = child.gameObject;
@@ -768,7 +886,7 @@ namespace TYR_DeClutterer
                                 break;
                             }
                     }
-                    if (!childHasMesh)
+                    if (!childHasMesh && !isGoodThing)
                     {
                         return false;
                     }
@@ -785,12 +903,19 @@ namespace TYR_DeClutterer
                             }
                         }
                     }
-                    if (childHasCollider)
-                    {
-                        return false;
-                    }
-                    float sizeOnY = GetMeshSizeOnY(childGameMeshObject);
-                if (childHasMesh && !childHasCollider && sizeOnY <= 2f * declutterScaleOffsetConfig.Value)
+                if (isGoodThing)
+                {
+                    sizeOnY = 0.1f;
+                }
+                else if (childHasMesh)
+                {
+                    sizeOnY = GetMeshSizeOnY(childGameMeshObject);
+                }
+                else
+                {
+                    return false;
+                }
+                if ((childHasMesh || isGoodThing) && (!childHasCollider || isGoodThing) && sizeOnY <= 2f * declutterScaleOffsetConfig.Value)
                     {
                         savedClutterObjects.Add(obj);
                         return true;

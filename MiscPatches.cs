@@ -1,5 +1,6 @@
 ﻿using Aki.Reflection.Patching;
 using EFT;
+using EFT.Interactive;
 using HarmonyLib;
 using System.Reflection;
 
@@ -60,6 +61,19 @@ namespace Framesaver
             {
                 GClass570.SyncTransforms();
             }
+            return false;
+        }
+    }
+    public class FlameDamageTriggerPatch : ModulePatch
+    {
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(FlameDamageTrigger), "ProceedDamage");
+        }
+
+        [PatchPrefix]
+        public static bool PatchPrefix()
+        {
             return false;
         }
     }
